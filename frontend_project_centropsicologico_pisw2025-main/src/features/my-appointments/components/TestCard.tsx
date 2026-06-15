@@ -72,7 +72,7 @@ export const TestCard = ({
             setDetectedFormTemplate(template);
           }
         })
-        .catch((err) => {
+        .catch(() => {
           // Si da 404 u otro error, asumimos que no tiene formulario digital y es documento
           console.log("No form template found for test:", templateTestId);
         })

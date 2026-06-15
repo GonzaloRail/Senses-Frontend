@@ -55,17 +55,14 @@ export const AppointmentBaseForm = ({
   loading,
   onPatientSearch,
   onPsychologistSearch,
-  onOfficeSearch,
   onPsychologistDateChange,
   onPsychologistStartTimeChange,
   onPsychologistEndTimeChange,
   patientOptions,
   psychologistOptions,
-  officeOptions,
   assignedOffice,
   patientSearchLoading = false,
   psychologistSearchLoading = false,
-  officeSearchLoading = false,
   appointmentStatus,
 }: BaseFormProps) => {
   const {

@@ -1,7 +1,6 @@
 import type { ClinicalHistory } from "./ClinicalHistory";
 import type { Document } from "./Document";
 import type { Test } from "./Test";
-import type { User } from "./User";
 
 export interface PatientTest {
   id: string;

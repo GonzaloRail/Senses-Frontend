@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Edit, PlusIcon, Save, X, LayoutGrid, Trash2, CheckCircle, Plus, ListPlus } from "lucide-react";
+import { Edit, PlusIcon, Save, X, LayoutGrid, Trash2, Plus } from "lucide-react";
 import { UploadedTest } from "./UploadedTest";
 import { type UseFormReturn } from "react-hook-form";
 import { type EvaluationFormSchema } from "@/shared/interfaces/forms/EvaluationFormSchema";
@@ -25,16 +25,7 @@ interface EvaluationBaseFormProps {
   loading: boolean;
 }
 
-// PROTOTIPO HÍBRIDO: Interfaz para preguntas dinámicas con soporte para opción múltiple
-interface FormQuestion {
-  id: string;
-  label: string;
-  type: "number" | "text" | "checkbox" | "select";
-  required: boolean;
-  options?: string[]; // NUEVO: Opciones para selección múltiple
-}
-
-import type { FormSectionPayload, FormFieldPayload, FormSubsectionPayload } from "../api/formTemplatesApi";
+import type { FormSectionPayload, FormFieldPayload } from "../api/formTemplatesApi";
 
 const ensureHierarchicalSchema = (schema: any[]): FormSectionPayload[] => {
   if (!schema || schema.length === 0) return [];
@@ -239,42 +230,6 @@ export const EvaluationBaseForm = ({
               return sub;
             }),
           };
-        }
-        return sec;
-      })
-    );
-  };
-
-  // Agregar campo de Historia Clínica (DNI)
-  const addClinicalHistoryField = (sectionId: string, subsectionId?: string) => {
-    const newField: FormFieldPayload = {
-      id: `campo_hc_${Date.now()}`,
-      label: "Historia Clínica (DNI)",
-      type: "TEXT",
-      required: true,
-      order: 0,
-      placeholder: "Número de Historia Clínica",
-      helpText: "Este campo se completará automáticamente con el DNI del paciente.",
-      isClinicalHistory: true,
-    };
-
-    setSections((prev) =>
-      prev.map((sec) => {
-        if (sec.id === sectionId) {
-          if (subsectionId && sec.subsections) {
-            return {
-              ...sec,
-              subsections: sec.subsections.map((sub) => {
-                if (sub.id === subsectionId) {
-                  return { ...sub, fields: [...sub.fields, newField] };
-                }
-                return sub;
-              }),
-            };
-          } else {
-            const fields = sec.fields || [];
-            return { ...sec, fields: [...fields, newField] };
-          }
         }
         return sec;
       })
