@@ -4,6 +4,14 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import {
   createPatientTestDocumentApi,
@@ -21,6 +29,7 @@ import type {
   Test,
 } from "@/shared/interfaces/models";
 import type { PatientTest } from "@/shared/interfaces/models/PatientTest";
+import { Checkbox } from "@/components/ui/checkbox";
 import { uploadFileToCloudStorage } from "@/shared/utils/uploadFileToCloudStorage";
 import { useAuth } from "@/store/auth/auth.store";
 import { formatDateTime } from "@/shared/utils/formatters";
@@ -28,16 +37,21 @@ import {
   Download,
   FileText,
   Upload,
-  ClipboardList,
   Clock,
   User,
   ChevronDown,
   ChevronRight,
   PlusCircle,
+  MoreHorizontal,
+  FileDown,
+  Eye,
+  ArrowUpDown,
+  CheckSquare,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { getFormTemplateByTestIdApi } from "@/features/evaluations/api/formTemplatesApi";
+import { getEvaluationByIdApi } from "@/features/evaluations/api/evaluationsApi";
 import { PDFDownloadButton } from "./PDFDownloadButton";
 import {
   createFormSubmissionApi,
@@ -53,6 +67,10 @@ interface TestApplicationRowProps {
   index: number;
   total: number;
   test: Test;
+  testTemplateMap?: Map<string, any>;
+  isSelected?: boolean;
+  onSelectToggle?: (patientTestId: string) => void;
+  isExportMode?: boolean;
 }
 
 const TestApplicationRow = ({
@@ -62,11 +80,14 @@ const TestApplicationRow = ({
   index,
   total,
   test,
+  testTemplateMap,
+  isSelected,
+  onSelectToggle,
+  isExportMode,
 }: TestApplicationRowProps) => {
   const isForm = patientTest.submissionMode === "FORM";
   const hasDocument = !!patientTest.document?.fileUrl;
 
-  // Fecha a mostrar: primero la de la cita, si no, la de completedAt
   const displayDate = patientTest.appointment?.startDate
     ? formatDateTime(patientTest.appointment.startDate)
     : patientTest.completedAt
@@ -83,16 +104,24 @@ const TestApplicationRow = ({
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0.6rem 0.75rem",
+        padding: "0.6rem 0.8rem",
+        backgroundColor: "#fff",
         borderRadius: "0.5rem",
-        backgroundColor: index % 2 === 0 ? "#f8fafc" : "#ffffff",
         border: "1px solid #e2e8f0",
-        gap: "0.75rem",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.02)",
       }}
     >
-      {/* Línea vertical de historial */}
-      <div
-        style={{
+      <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
+        {isExportMode && onSelectToggle && patientTest.formSubmission && (
+          <Checkbox 
+            checked={isSelected}
+            onCheckedChange={() => onSelectToggle(patientTest.id)}
+            className="data-[state=checked]:bg-senses-primary data-[state=checked]:border-senses-primary border-slate-300"
+          />
+        )}
+        
+        <div
+          style={{
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -120,7 +149,6 @@ const TestApplicationRow = ({
         )}
       </div>
 
-      {/* Info: fecha y psicólogo */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
@@ -166,41 +194,52 @@ const TestApplicationRow = ({
           </div>
         )}
       </div>
+      </div>
 
-      {/* Botón de acción */}
       <div style={{ flexShrink: 0, display: "flex", gap: "0.5rem" }}>
         {isForm && patientTest.formSubmission ? (
-          <>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onViewForm(patientTest)}
-              style={{ fontSize: "0.75rem", height: "30px" }}
-            >
-              <ClipboardList size={13} style={{ marginRight: "4px" }} />
-              Ver respuestas
-            </Button>
-            <PDFDownloadButton
-              testName={test.name}
-              patientTests={[patientTest]}
-              testId={test.id}
-              fieldsSchema={test.formTemplate?.fieldsSchema}
-              clinicalHistory={clinicalHistory}
-              label="Generar PDF"
-            />
-          </>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 border border-slate-200 hover:bg-slate-100">
+                <span className="sr-only">Abrir opciones</span>
+                <MoreHorizontal className="h-4 w-4 text-slate-500" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[160px]">
+              <DropdownMenuItem onClick={() => onViewForm(patientTest)} className="cursor-pointer">
+                <Eye className="mr-2 h-4 w-4 text-slate-500" />
+                <span>Ver respuestas</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+                <PDFDownloadButton
+                  testName={test.name}
+                  patientTests={[patientTest]}
+                  testId={patientTest.testId || test.id}
+                  fieldsSchema={testTemplateMap?.get(patientTest.testId || test.id)?.fieldsSchema || test.formTemplate?.fieldsSchema}
+                  clinicalHistory={clinicalHistory}
+                  label="Descargar PDF"
+                  className="w-full justify-start px-2 h-8 font-normal text-sm hover:bg-slate-100 border-none shadow-none"
+                  variant="ghost"
+                />
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : hasDocument ? (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() =>
-              window.open(patientTest.document?.fileUrl, "_blank")
-            }
-            style={{ fontSize: "0.75rem", height: "30px" }}
-          >
-            <Download size={13} style={{ marginRight: "4px" }} />
-            Descargar
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 border border-slate-200 hover:bg-slate-100">
+                <span className="sr-only">Abrir opciones</span>
+                <MoreHorizontal className="h-4 w-4 text-slate-500" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[160px]">
+              <DropdownMenuItem onClick={() => window.open(patientTest.document?.fileUrl, "_blank")} className="cursor-pointer">
+                <Download className="mr-2 h-4 w-4 text-slate-500" />
+                <span>Descargar archivo</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : (
           <span
             style={{
@@ -224,11 +263,15 @@ const TestHistoryCard = ({
   clinicalHistory,
   setIsDataLoading,
   appointmentId,
+  testTemplateMap,
+  evaluationId,
 }: {
   test: Test;
   clinicalHistory: ClinicalHistory;
   setIsDataLoading: (v: boolean) => void;
   appointmentId?: string;
+  testTemplateMap?: Map<string, any>;
+  evaluationId: string;
 }) => {
   const { user, roleSelected } = useAuth();
   const { showAlert } = useAlert();
@@ -239,27 +282,70 @@ const TestHistoryCard = ({
     test.patientTests.length > 0
   );
 
-  // Modal de formulario
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [isExportMode, setIsExportMode] = useState(false);
+  const [selectedTests, setSelectedTests] = useState<Set<string>>(new Set());
+
   const [isFormFillerOpen, setIsFormFillerOpen] = useState(false);
   const [activeFormData, setActiveFormData] = useState<{
     fieldsSchema: any[];
     formTemplateName: string;
     responseData?: any;
-    isReadOnly: boolean;
-    patientTestId?: string;
+    isReadOnly?: boolean;
     formTemplateId?: string;
+    activeTestId?: string;
   } | null>(null);
 
-  const isForm = !!test.formTemplate || test.patientTests[0]?.submissionMode === "FORM";
   const applicationsCount = test.patientTests.length;
+  const isForm = test.formTemplate !== undefined && test.formTemplate !== null;
 
-  // Ver respuestas de un intento específico (modo lectura)
+  const sortedPatientTests = [...test.patientTests].sort((a, b) => {
+    const dateA = new Date(a.appointment?.startDate || a.completedAt).getTime();
+    const dateB = new Date(b.appointment?.startDate || b.completedAt).getTime();
+    return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
+  });
+
+  const toggleSortOrder = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSortOrder(prev => prev === "desc" ? "asc" : "desc");
+  };
+
+  const handleToggleExportMode = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsExportMode(!isExportMode);
+    if (isExportMode) {
+      setSelectedTests(new Set()); 
+    }
+  };
+
+  const formSubmissionsOnly = sortedPatientTests.filter(pt => pt.formSubmission);
+  const handleSelectAll = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (selectedTests.size === formSubmissionsOnly.length && formSubmissionsOnly.length > 0) {
+      setSelectedTests(new Set());
+    } else {
+      setSelectedTests(new Set(formSubmissionsOnly.map(pt => pt.id)));
+    }
+  };
+
+  const handleSelectToggle = (patientTestId: string) => {
+    setSelectedTests(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(patientTestId)) {
+        newSet.delete(patientTestId);
+      } else {
+        newSet.add(patientTestId);
+      }
+      return newSet;
+    });
+  };
+
   const handleViewForm = async (patientTest: PatientTest) => {
-    let template = test.formTemplate;
+    let template = testTemplateMap?.get(patientTest.testId || test.id) || test.formTemplate;
     if (!template) {
       setIsDataLoading(true);
       try {
-        const fetched = await getFormTemplateByTestIdApi(test.id);
+        const fetched = await getFormTemplateByTestIdApi(patientTest.testId || test.id);
         if (fetched) template = fetched;
       } catch {
         showAlert("Esta prueba no tiene formulario digital configurado.", "error");
@@ -274,31 +360,45 @@ const TestHistoryCard = ({
         formTemplateName: template.name,
         responseData: patientTest.formSubmission?.responseData,
         isReadOnly: true,
+        activeTestId: patientTest.testId || test.id,
       });
       setIsFormFillerOpen(true);
     }
   };
 
-  // Nueva aplicación: formulario vacío para psicólogo
   const handleNewFormApplication = async () => {
-    let template = test.formTemplate;
-    if (!template) {
-      setIsDataLoading(true);
-      try {
-        const fetched = await getFormTemplateByTestIdApi(test.id);
+    setIsDataLoading(true);
+    try {
+      const fullEvaluation = await getEvaluationByIdApi(evaluationId);
+      
+      const testGroupKey = test.testGroupId || test.name.trim().toLowerCase();
+      const activeTestVersion = fullEvaluation.tests?.find(
+        (t: any) => 
+          t.isActive && 
+          (t.testGroupId ? t.testGroupId === testGroupKey : t.name.trim().toLowerCase() === testGroupKey)
+      ) || test;
+
+      let template = activeTestVersion.formTemplate;
+      
+      if (!template) {
+        const fetched = await getFormTemplateByTestIdApi(activeTestVersion.id);
         if (fetched) template = fetched;
-      } catch {
+      }
+
+      if (!template) {
         showAlert("Esta prueba no tiene formulario digital configurado.", "error");
         setIsDataLoading(false);
         return;
       }
-      setIsDataLoading(false);
-    }
-    if (template) {
-      const lastSubmissionTest = test.patientTests?.find(
+
+      const lastSubmissionTest = sortedPatientTests.find(
         (pt: any) => pt.submissionMode === "FORM" && pt.formSubmission?.responseData
       );
       const prefilledData = lastSubmissionTest ? lastSubmissionTest.formSubmission?.responseData : undefined;
+
+      if (lastSubmissionTest && lastSubmissionTest.testId !== activeTestVersion.id) {
+        showAlert("El administrador ha modificado este formulario. Tus respuestas anteriores se han copiado a la nueva versión.", "info");
+      }
 
       setActiveFormData({
         fieldsSchema: template.fieldsSchema,
@@ -306,18 +406,24 @@ const TestHistoryCard = ({
         responseData: prefilledData,
         isReadOnly: false,
         formTemplateId: template.id,
+        activeTestId: activeTestVersion.id,
       });
       setIsFormFillerOpen(true);
+
+    } catch (err) {
+      console.error(err);
+      showAlert("Error al cargar la versión activa de la prueba.", "error");
+    } finally {
+      setIsDataLoading(false);
     }
   };
 
-  // Guardar nueva aplicación de formulario
   const handleSaveNewFormApplication = async (answers: Record<string, any>) => {
-    if (!activeFormData?.formTemplateId) return;
+    if (!activeFormData?.formTemplateId || activeFormData.isReadOnly) return;
     setIsDataLoading(true);
     try {
       const newPatientTest = await createPatientTestApi({
-        testId: test.id,
+        testId: activeFormData.activeTestId || test.id,
         clinicalHistoryId: clinicalHistory.id,
         completedById: user?.id || "",
         isGeneralDoc: false,
@@ -342,10 +448,11 @@ const TestHistoryCard = ({
       showAlert("Error al guardar el formulario.", "error");
     } finally {
       setIsDataLoading(false);
+      setIsFormFillerOpen(false);
+      setActiveFormData(null);
     }
   };
 
-  // Subir nuevo archivo (nueva aplicación de documento)
   const handleNewFileApplication = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -397,7 +504,6 @@ const TestHistoryCard = ({
         backgroundColor: "#ffffff",
       }}
     >
-      {/* Header del test */}
       <div
         style={{
           display: "flex",
@@ -434,50 +540,81 @@ const TestHistoryCard = ({
           </div>
         </div>
 
-        {/* Botones de acción en el header */}
         <div
-          style={{ display: "flex", gap: "0.5rem", flexShrink: 0 }}
+          style={{ display: "flex", gap: "0.5rem", flexShrink: 0, alignItems: "center" }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Botón de plantilla descargable */}
-          {test.document?.fileUrl && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => window.open(test.document?.fileUrl, "_blank")}
-              style={{ fontSize: "0.75rem", height: "30px" }}
+          {applicationsCount > 1 && !isExportMode && (
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              className="h-[30px] text-[0.75rem] px-2 text-slate-500 hover:text-slate-700"
+              onClick={toggleSortOrder}
+              title="Cambiar orden"
             >
-              <FileText size={13} style={{ marginRight: "4px" }} />
-              Plantilla
+              <ArrowUpDown size={14} className="mr-1" />
+              {sortOrder === "desc" ? "Más recientes" : "Más antiguos"}
             </Button>
           )}
 
-          {/* Botones de reporte PDF */}
-          {isForm && applicationsCount > 0 && (
+          {isExportMode ? (
             <>
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                className="h-[30px] text-[0.75rem] px-2 text-slate-500 hover:text-slate-700"
+                onClick={handleSelectAll}
+              >
+                <CheckSquare size={14} className="mr-1" />
+                {selectedTests.size === formSubmissionsOnly.length && formSubmissionsOnly.length > 0 ? "Desmarcar todo" : "Marcar todo"}
+              </Button>
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                className="h-[30px] text-[0.75rem] px-2 text-senses-danger hover:text-senses-danger hover:bg-red-50"
+                onClick={handleToggleExportMode}
+              >
+                Cancelar
+              </Button>
               <PDFDownloadButton
                 testName={test.name}
-                patientTests={test.patientTests.filter(pt => pt.formSubmission)}
+                patientTests={sortedPatientTests.filter(pt => selectedTests.has(pt.id))}
                 testId={test.id}
                 fieldsSchema={test.formTemplate?.fieldsSchema}
                 clinicalHistory={clinicalHistory}
-                label="Reporte completo"
-                variant="outline"
+                label={`Descargar (${selectedTests.size})`}
+                variant="default"
+                className="h-[30px] text-[0.75rem] bg-senses-primary hover:bg-senses-primary/90"
               />
-              <PDFDownloadButton
-                testName={test.name}
-                patientTests={[test.patientTests.find(pt => pt.formSubmission)!].filter(Boolean)}
-                testId={test.id}
-                fieldsSchema={test.formTemplate?.fieldsSchema}
-                clinicalHistory={clinicalHistory}
-                label="Generar último reporte"
-                variant="outline"
-              />
+            </>
+          ) : (
+            <>
+              {test.document?.fileUrl && (
+                 <Button
+                 size="sm"
+                 variant="outline"
+                 onClick={() => window.open(test.document?.fileUrl, "_blank")}
+                 style={{ fontSize: "0.75rem", height: "30px" }}
+               >
+                 <FileText size={13} style={{ marginRight: "4px" }} />
+                 Plantilla
+               </Button>
+              )}
+              {isForm && formSubmissionsOnly.length > 0 && (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="h-[30px] text-[0.75rem]"
+                  onClick={handleToggleExportMode}
+                >
+                  <FileDown size={14} className="mr-1" />
+                  Exportar
+                </Button>
+              )}
             </>
           )}
 
-          {/* Botón para nueva aplicación (solo psicólogo y en cita) */}
-          {roleSelected === "PSYCHOLOGIST" && appointmentId && (
+          {roleSelected === "PSYCHOLOGIST" && appointmentId && !isExportMode && (
             <>
               {isForm ? (
                 <Button
@@ -523,31 +660,34 @@ const TestHistoryCard = ({
         </div>
       </div>
 
-      {/* Lista cronológica de aplicaciones */}
       {isExpanded && applicationsCount > 0 && (
         <div
           style={{
             padding: "0.75rem",
             display: "flex",
             flexDirection: "column",
-            gap: "0.4rem",
+            gap: "0.5rem"
           }}
+          onClick={(e) => e.stopPropagation()}
         >
-          {(appointmentId ? test.patientTests.slice(0, 1) : test.patientTests).map((pt, idx) => (
+          {sortedPatientTests.map((patientTest, idx) => (
             <TestApplicationRow
-              key={pt.id}
-              patientTest={pt}
+              key={patientTest.id}
+              patientTest={patientTest}
               clinicalHistory={clinicalHistory}
               onViewForm={handleViewForm}
-              index={idx}
+              index={sortOrder === "desc" ? idx : applicationsCount - 1 - idx}
               total={applicationsCount}
               test={test}
+              testTemplateMap={testTemplateMap}
+              isSelected={selectedTests.has(patientTest.id)}
+              onSelectToggle={handleSelectToggle}
+              isExportMode={isExportMode}
             />
           ))}
         </div>
       )}
 
-      {/* Modal de formulario */}
       {isFormFillerOpen && activeFormData && (
         <FormFillerModal
           isOpen={isFormFillerOpen}
@@ -625,15 +765,59 @@ const CustomSectionContent = ({
   setIsDataLoading: (v: boolean) => void;
   appointmentId?: string;
 }) => {
+  const testTemplateMap = new Map<string, any>();
+  const groupedTestsMap = new Map<string, Test>();
+
+  evaluation.tests.forEach((test) => {
+    const groupKey = test.testGroupId || test.name.trim().toLowerCase();
+
+    if (test.formTemplate) {
+      testTemplateMap.set(test.id, test.formTemplate);
+    }
+
+    if (!groupedTestsMap.has(groupKey)) {
+      groupedTestsMap.set(groupKey, { ...test, patientTests: [...test.patientTests] });
+    } else {
+      const existingGroup = groupedTestsMap.get(groupKey)!;
+      const combinedPatientTests = [...existingGroup.patientTests, ...test.patientTests];
+
+      const isNewer = () => {
+         if (test.isActive === true && existingGroup.isActive !== true) return true;
+         if (test.isActive !== false && existingGroup.isActive === false) return true;
+         if (test.createdAt && existingGroup.createdAt) {
+            return new Date(test.createdAt).getTime() > new Date(existingGroup.createdAt).getTime();
+         }
+         return true; 
+      };
+
+      if (isNewer()) {
+        groupedTestsMap.set(groupKey, { ...test, patientTests: combinedPatientTests });
+      } else {
+        existingGroup.patientTests = combinedPatientTests;
+      }
+    }
+  });
+
+  const groupedTests = Array.from(groupedTestsMap.values()).map(group => {
+    group.patientTests.sort((a, b) => {
+      const dateA = new Date(a.appointment?.startDate || a.completedAt).getTime();
+      const dateB = new Date(b.appointment?.startDate || b.completedAt).getTime();
+      return dateB - dateA;
+    });
+    return group;
+  });
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-      {evaluation.tests.map((test) => (
+      {groupedTests.map((test) => (
         <TestHistoryCard
           key={test.id}
           test={test}
           clinicalHistory={clinicalHistory}
           setIsDataLoading={setIsDataLoading}
           appointmentId={appointmentId}
+          testTemplateMap={testTemplateMap}
+          evaluationId={evaluation.id}
         />
       ))}
     </div>

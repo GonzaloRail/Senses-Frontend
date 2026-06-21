@@ -135,6 +135,7 @@ export const EditEvaluation = () => {
         filename: test.document?.name || (test.formTemplate ? "Formulario digital" : "Documento sin nombre"),
         fileurl: test.document?.fileUrl || "",
         isNew: false,
+        testGroupId: test.testGroupId,
         templateContent: test.formTemplate ? mapFieldsSchemaToFormQuestions(test.formTemplate.fieldsSchema) : undefined,
       })),
     });
@@ -233,9 +234,10 @@ export const EditEvaluation = () => {
               name: test.name,
               description: test.description || "",
               filename: test.filename,
-              filePath,
+              filePath: filePath || null,
               evaluationId: evaluationData.id,
               createdById: user?.id || "",
+              testGroupId: (test as any).testGroupId || undefined,
               templateContent: (test as any).templateContent || null,
             };
           })

@@ -8,7 +8,8 @@ export interface Test {
   name: string;
   description?: string;
   document?: Document;
-  isActive: boolean;
+  isActive?: boolean;
+  testGroupId?: string;
 
   createdById: string;
   createdBy: User;

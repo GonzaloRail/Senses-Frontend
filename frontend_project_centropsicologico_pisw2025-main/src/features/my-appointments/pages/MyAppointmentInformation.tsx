@@ -552,6 +552,9 @@ export const MyAppointmentInformation = () => {
                           setSelectedEvaluationId={setSelectedEvaluationId}
                           handleCreatePatientTest={handleCreatePatientTest}
                           onFillForm={onFillForm}
+                          onRemoveEvaluation={(id) => {
+                            setEvaluations((prev) => prev.filter((e) => e.id !== id));
+                          }}
                         />
                       ))
                     ) : (
