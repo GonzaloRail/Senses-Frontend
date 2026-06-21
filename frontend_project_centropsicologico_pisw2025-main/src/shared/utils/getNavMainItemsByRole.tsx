@@ -3,7 +3,7 @@ import { FaUser, FaCalendarAlt } from "react-icons/fa";
 import { GiHealthNormal } from "react-icons/gi";
 import { PiOfficeChairBold } from "react-icons/pi";
 import { IoIosDocument } from "react-icons/io";
-import { MdInventory } from "react-icons/md";
+import { MdInventory, MdAnnouncement } from "react-icons/md";
 import { FaUserCog } from "react-icons/fa";
 
 export const getNavMainItemsByRole = (role: string) => {
@@ -49,6 +49,11 @@ export const getNavMainItemsByRole = (role: string) => {
           title: "Gestión de inventarios",
           icon: MdInventory,
           url: "/inventory",
+        },
+        {
+          title: "Gestión de comunicados",
+          icon: MdAnnouncement,
+          url: "/announcements",
         },
       ];
     case "ADMISSION":

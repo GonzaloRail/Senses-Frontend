@@ -8,19 +8,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useAuthStore } from "@/store/auth/auth.store";
 import { Megaphone } from "lucide-react";
 
 export const GlobalAnnouncementModal = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const roleSelected = useAuthStore((state) => state.roleSelected);
 
   // Simulamos que la alerta llega del backend después de cargar la página
   useEffect(() => {
+    // Si no es psicólogo, ni siquiera armamos el timer
+    if (roleSelected !== "PSYCHOLOGIST") return;
+
     const timer = setTimeout(() => {
       setIsOpen(true);
     }, 1500); // Aparece 1.5 segundos después de entrar
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [roleSelected]);
 
   const handleClose = () => {
     // Aquí en el futuro llamaremos a POST /api/alerts/:id/read

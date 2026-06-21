@@ -43,6 +43,7 @@ import { EmployeeLeavesList } from "@/features/employeeLeaves/pages/EmployeeLeav
 import { CreateEmployeeLeave } from "@/features/employeeLeaves/pages/CreateEmployeeLeave";
 import { ViewEmployeeLeave } from "@/features/employeeLeaves/pages/ViewEmployeeLeave";
 import { EditEmployeeLeave } from "@/features/employeeLeaves/pages/EditEmployeeLeave";
+import { AnnouncementManagementPage } from "@/features/announcements/pages/AnnouncementManagementPage";
 
 import { ActivateAccount } from "@/features/auth/pages/ActivateAccount";
 import { RequestPasswordReset } from "@/features/auth/pages/RequestPasswordReset";
@@ -124,6 +125,7 @@ export const AppRouter = () => {
               {/* Rutas solo para gerente */}
               <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
                 <Route path="dashboard/" element={<Dashboard />} />
+                <Route path="announcements/" element={<AnnouncementManagementPage />} />
                 <Route path="system-users/" element={<SystemUsersList />} />
                 <Route
                   path="user-information/:id"
