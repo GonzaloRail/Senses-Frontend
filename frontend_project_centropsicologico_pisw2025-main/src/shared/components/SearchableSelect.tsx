@@ -42,6 +42,7 @@ export const SearchableSelect = forwardRef<
       readOnly = false,
       helper,
       error,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       className,
       disabled
     },

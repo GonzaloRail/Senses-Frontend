@@ -11,6 +11,8 @@ import type {
 } from "@/shared/interfaces/models";
 import { TextareaWithHelper } from "@/shared/components/TextareaWithHelper";
 import RadioGroupWithHelper from "@/shared/components/RadioGroupWithHelper";
+import { PatientSearchSelect } from "./PatientSearchSelect";
+import type { PatientSearchQuery } from "@/features/patients/api/patientsApi";
 
 export type FormMode = "view" | "edit" | "create";
 export interface BaseFormProps {
@@ -23,7 +25,7 @@ export interface BaseFormProps {
   loading: boolean;
 
   // Search handlers
-  onPatientSearch: (query: string) => void;
+  onPatientSearch: (filters: PatientSearchQuery) => void;
   onPsychologistSearch: (query: string) => void;
   onOfficeSearch: (query: string) => void;
 
@@ -94,22 +96,16 @@ export const AppointmentBaseForm = ({
         <div className="flex flex-col p-2 gap-5 flex-1">
           <div className="flex flex-col p-2 md:p-6 items-center gap-4">
             {/* Búsqueda de Paciente */}
-            <SearchableSelect
+            <PatientSearchSelect
               id="patientId"
               label="Paciente"
-              placeholder="Buscar paciente por DNI..."
               value={watch("patientId")}
               onValueChange={(value) => setValue("patientId", value)}
               onSearch={onPatientSearch}
-              options={patientOptions.map((patient) => ({
-                value: patient.id,
-                label: patient.dni
-                  ? `${patient.name} - ${patient.dni}`
-                  : patient.name,
-              }))}
+              options={patientOptions}
               loading={patientSearchLoading}
               readOnly={isViewMode || mode === "edit"}
-              helper="Busque y seleccione el paciente para la cita"
+              helper="Busque por DNI o por nombre y apellido para seleccionar el paciente"
               error={errors.patientId?.message}
             />
 

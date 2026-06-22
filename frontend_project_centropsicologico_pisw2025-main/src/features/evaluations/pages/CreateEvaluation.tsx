@@ -164,7 +164,7 @@ export const CreateEvaluation = () => {
               name: test.name,
               description: test.description || "",
               filename: test.filename,
-              filePath,
+              filePath: filePath || "",
               evaluationId: createdEvaluation.id,
               createdById: user?.id,
               // PROTOTIPO HÍBRIDO: Agregamos el JSON de las preguntas que se guardará en Test.templateContent

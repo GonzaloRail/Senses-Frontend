@@ -197,7 +197,7 @@ export const CreateAppointment = () => {
         onCancel={handleCancel}
         loading={loading || createAppointmentMutation.isPending}
         // Search handlers
-        onPatientSearch={patientSearch.setNameQuery}
+        onPatientSearch={patientSearch.setSearchFilters}
         onPsychologistSearch={psychologistSearch.setSearchQuery}
         onOfficeSearch={officeSearch.setSearch}
         // Date/Time handlers for psychologist search

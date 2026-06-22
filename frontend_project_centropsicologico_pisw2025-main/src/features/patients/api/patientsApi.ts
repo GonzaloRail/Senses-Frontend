@@ -60,12 +60,22 @@ export const createPatientApi = async (patientToCreate: Partial<Patient>) => {
   return response.data;
 };
 
-export const searchPatientsByDniOrName = async (dni: string, name: string) => {
+export interface PatientSearchQuery {
+  dni?: string;
+  firstname?: string;
+  lastname?: string;
+}
+
+export const searchPatientsApi = async ({
+  dni = "",
+  firstname = "",
+  lastname = "",
+}: PatientSearchQuery) => {
   const response = await api.get(`/api/v1/patients/search`, {
     params: {
       dni,
-      firstname: name,
-      lastname: name,
+      firstname,
+      lastname,
     },
   });
 

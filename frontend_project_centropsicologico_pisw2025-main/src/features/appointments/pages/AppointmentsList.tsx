@@ -10,6 +10,8 @@ import clsx from "clsx";
 import type { AppointmentPaginatedResponse } from "@/shared/interfaces/apiResponses/getAllAppointmentsPaginated";
 import { getAllAppointmentsPaginatedApi, getAppointmentsByDateApi } from "../api/appointmentsApi";
 import type { AppointmentsListByDatePaginatedResponse } from "@/shared/interfaces/apiResponses/getAppointmentsByDatePaginatedResponse";
+import { useState } from "react";
+import { AppointmentScheduler } from "../components/AppointmentScheduler";
 
 const statusName = {
   PENDING: "Pendiente",
@@ -20,6 +22,7 @@ const statusName = {
 
 export const AppointmentsList = () => {
   const navigate = useNavigate();
+  const [selectedView, setSelectedView] = useState<"table" | "schedule">("table");
   // const [patientsFilterOptions, setPatientsFilterOptions] = useState<string[]>([]);
 
   /* useEffect(() => {
@@ -208,34 +211,62 @@ export const AppointmentsList = () => {
     <>
       <SiteHeader title="Citas" />
       <div className="flex flex-1 flex-col">
+        <div className="flex flex-row gap-2 mx-5 mt-5 mb-0">
+          <Button
+            className={`shadow-md ${
+              selectedView === "table"
+                ? "bg-senses-primary text-white hover:bg-senses-primary/90"
+                : "bg-white text-senses-primary cursor-pointer hover:bg-senses-primary/20"
+            }`}
+            onClick={() => setSelectedView("table")}
+            type="button"
+          >
+            Tabla
+          </Button>
+          <Button
+            className={`shadow-md ${
+              selectedView === "schedule"
+                ? "bg-senses-primary text-white hover:bg-senses-primary/90"
+                : "bg-white text-senses-primary cursor-pointer hover:bg-senses-primary/20"
+            }`}
+            onClick={() => setSelectedView("schedule")}
+            type="button"
+          >
+            Horario
+          </Button>
+        </div>
         <div className="@container/main flex flex-1 flex-col gap-2">
-          <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-            <DataTable
-              fetchData={fetchData}
-              searchItem={{
-                searchLabel: "Buscar por DNI",
-                fetchDataSearch: fetchDataSearch,
-              }}
-              addItem={{
-                addItemLabel: "Crear cita",
-                onClickAddItem: () => {
-                  navigate("/create-appointment");
-                },
-              }}
-              /* filter={{
-                filterLabel: "Filtrar por paciente",
-                filterLabelMobile: "Paciente",
-                filterOptions: patientsFilterOptions,
-                filterColumn: "patientName",
-              }} */
-              dateFilter={{
-                dateFilterLabel: "Fecha",
-                dateFilterLabelMobile: "Fecha",
-                fetchDataOnDateChange: fetchDataOnDateChange
-              }}
-              columns={columns}
-            />
-          </div>
+          {selectedView === "table" ? (
+            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+              <DataTable
+                fetchData={fetchData}
+                searchItem={{
+                  searchLabel: "Buscar por DNI",
+                  fetchDataSearch: fetchDataSearch,
+                }}
+                addItem={{
+                  addItemLabel: "Crear cita",
+                  onClickAddItem: () => {
+                    navigate("/create-appointment");
+                  },
+                }}
+                /* filter={{
+                  filterLabel: "Filtrar por paciente",
+                  filterLabelMobile: "Paciente",
+                  filterOptions: patientsFilterOptions,
+                  filterColumn: "patientName",
+                }} */
+                dateFilter={{
+                  dateFilterLabel: "Fecha",
+                  dateFilterLabelMobile: "Fecha",
+                  fetchDataOnDateChange: fetchDataOnDateChange
+                }}
+                columns={columns}
+              />
+            </div>
+          ) : (
+            <AppointmentScheduler />
+          )}
         </div>
       </div>
       <Outlet />

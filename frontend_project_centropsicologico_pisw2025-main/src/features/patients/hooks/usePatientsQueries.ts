@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   getPatientByIdApi,
-  searchPatientsByDniOrName,
+  searchPatientsApi,
   type PatientByIdQuery,
+  type PatientSearchQuery,
   type PatientsPaginatedQuery,
 } from "../api/patientsApi";
 import { getAllUsersPaginatedApi } from "@/features/systemUsers/api/systemUsersApi";
@@ -32,17 +33,38 @@ export const usePatientByIdQuery = ({ id }: PatientByIdQuery) => {
 };
 
 export const usePatientSearchQuery = () => {
-  const [searchDni, setDniQuery] = useState<string>("");
-  const [searchName, setNameQuery] = useState<string>("");
+  const [searchFilters, setSearchFilters] = useState<PatientSearchQuery>({
+    dni: "",
+    firstname: "",
+    lastname: "",
+  });
+
+  const normalizedDni = searchFilters.dni?.trim() ?? "";
+  const normalizedFirstname = searchFilters.firstname?.trim() ?? "";
+  const normalizedLastname = searchFilters.lastname?.trim() ?? "";
 
   const {
     data: patients = [],
     isLoading,
     error,
   } = useQuery<PatientMinimal[]>({
-    queryKey: ["patients", searchName, searchDni],
-    queryFn: () => searchPatientsByDniOrName(searchDni, searchName),
-    enabled: searchDni.trim().length > 0 || searchName.trim().length > 0,
+    queryKey: [
+      "patients",
+      "search",
+      normalizedDni,
+      normalizedFirstname,
+      normalizedLastname,
+    ],
+    queryFn: () =>
+      searchPatientsApi({
+        dni: normalizedDni,
+        firstname: normalizedFirstname,
+        lastname: normalizedLastname,
+      }),
+    enabled:
+      normalizedDni.length > 0 ||
+      normalizedFirstname.length > 0 ||
+      normalizedLastname.length > 0,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -50,7 +72,6 @@ export const usePatientSearchQuery = () => {
     patients,
     isLoading,
     error,
-    setDniQuery,
-    setNameQuery,
+    setSearchFilters,
   };
 };

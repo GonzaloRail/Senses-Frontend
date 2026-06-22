@@ -233,7 +233,7 @@ export const EditEvaluation = () => {
               name: test.name,
               description: test.description || "",
               filename: test.filename,
-              filePath,
+              filePath: filePath || "",
               evaluationId: evaluationData.id,
               createdById: user?.id || "",
               templateContent: (test as any).templateContent || null,
