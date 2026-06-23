@@ -10,8 +10,14 @@ import clsx from "clsx";
 import type { AppointmentPaginatedResponse } from "@/shared/interfaces/apiResponses/getAllAppointmentsPaginated";
 import { getAllAppointmentsPaginatedApi, getAppointmentsByDateApi } from "../api/appointmentsApi";
 import type { AppointmentsListByDatePaginatedResponse } from "@/shared/interfaces/apiResponses/getAppointmentsByDatePaginatedResponse";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { AppointmentScheduler } from "../components/AppointmentScheduler";
+import {
+  PatientTableSearch,
+  arePatientTableFiltersEqual,
+  getEmptyPatientTableFilters,
+  type PatientTableFilters,
+} from "@/features/patients/components/PatientTableSearch";
 
 const statusName = {
   PENDING: "Pendiente",
@@ -23,6 +29,7 @@ const statusName = {
 export const AppointmentsList = () => {
   const navigate = useNavigate();
   const [selectedView, setSelectedView] = useState<"table" | "schedule">("table");
+  const [appliedFilters, setAppliedFilters] = useState<PatientTableFilters>(getEmptyPatientTableFilters);
   // const [patientsFilterOptions, setPatientsFilterOptions] = useState<string[]>([]);
 
   /* useEffect(() => {
@@ -119,14 +126,20 @@ export const AppointmentsList = () => {
     },
   ];
 
-  const fetchData = async ({ pageIndex = 0, pageSize = 10 }) => {
+  const getSearchText = useCallback(() => {
+    if (appliedFilters.dni.trim()) return appliedFilters.dni.trim();
+    return [appliedFilters.firstname.trim(), appliedFilters.lastname.trim()].filter(Boolean).join(" ");
+  }, [appliedFilters]);
+
+  const fetchData = useCallback(async ({ pageIndex = 0, pageSize = 10 }) => {
     const page = pageIndex + 1;
     const take = pageSize;
+    const search = getSearchText();
 
     const dataResponse =
       await queryClient.fetchQuery<AppointmentPaginatedResponse>({
-        queryKey: ["appointments", page, take],
-        queryFn: () => getAllAppointmentsPaginatedApi({ page, take }),
+        queryKey: ["appointments", page, take, search],
+        queryFn: () => getAllAppointmentsPaginatedApi({ page, take, search }),
       });
 
     const data = dataResponse.appointments.map((appointment) => ({
@@ -140,7 +153,7 @@ export const AppointmentsList = () => {
       data,
       pageCount: dataResponse.totalPages,
     };
-  };
+  }, [getSearchText]);
 
   const fetchDataOnDateChange = async (pagination: { pageIndex: number, pageSize: number, date: Date | null }) => {
     const { date, pageIndex, pageSize } = pagination;
@@ -179,33 +192,11 @@ export const AppointmentsList = () => {
     }
   }
 
-  const fetchDataSearch = async ({
-    pageIndex = 0,
-    pageSize = 10,
-    search = "",
-  }) => {
-    const page = pageIndex + 1;
-    const take = pageSize;
-
-    const dataResponse = await queryClient.fetchQuery<AppointmentPaginatedResponse>({
-      queryKey: ["users", page, take],
-      queryFn: () => getAllAppointmentsPaginatedApi({ page, take, search }),
-    });
-
-    console.log("dr:", dataResponse)
-
-    const data = dataResponse.appointments.map((appointment) => ({
-      ...appointment,
-      startDateTime: new Date(appointment.startDateTime),
-      date: new Date(appointment.startDateTime),
-      adminButton: "Administrar",
-    }));
-
-    return {
-      data: data,
-      pageCount: dataResponse.totalPages,
-    };
-  };
+  const handleFiltersChange = useCallback((nextFilters: PatientTableFilters) => {
+    setAppliedFilters((currentFilters) =>
+      arePatientTableFiltersEqual(currentFilters, nextFilters) ? currentFilters : nextFilters
+    );
+  }, []);
 
   return (
     <>
@@ -238,18 +229,9 @@ export const AppointmentsList = () => {
         <div className="@container/main flex flex-1 flex-col gap-2">
           {selectedView === "table" ? (
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+              <PatientTableSearch onFiltersChange={handleFiltersChange} />
               <DataTable
                 fetchData={fetchData}
-                searchItem={{
-                  searchLabel: "Buscar por DNI",
-                  fetchDataSearch: fetchDataSearch,
-                }}
-                addItem={{
-                  addItemLabel: "Crear cita",
-                  onClickAddItem: () => {
-                    navigate("/create-appointment");
-                  },
-                }}
                 /* filter={{
                   filterLabel: "Filtrar por paciente",
                   filterLabelMobile: "Paciente",

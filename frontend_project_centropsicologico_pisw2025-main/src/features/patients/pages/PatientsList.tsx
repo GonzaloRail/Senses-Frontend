@@ -1,12 +1,4 @@
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { queryClient } from "@/lib/queryClient";
 import { DataTable } from "@/shared/components/DataTable";
 import { SiteHeader } from "@/shared/components/SiteHeader";
@@ -14,9 +6,15 @@ import type { PatientsPaginatedResponse } from "@/shared/interfaces/apiResponses
 import type { PatientsListSchema } from "@/shared/interfaces/tables/PatientsListSchema";
 import type { Patient } from "@/shared/interfaces/models";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
 import { getAllPatientsApi, getPatientByIdApi } from "../api/patientsApi";
+import {
+  PatientTableSearch,
+  arePatientTableFiltersEqual,
+  getEmptyPatientTableFilters,
+  type PatientTableFilters,
+} from "../components/PatientTableSearch";
 import {
   complementaryExportColumns,
   extractComplementaryFormValues,
@@ -109,15 +107,7 @@ const buildPatientsCsv = (patients: Partial<Patient>[]) => {
 
 export const PatientsList = () => {
   const navigate = useNavigate();
-  const [searchType, setSearchType] = useState<"DNI" | "NAME_SURNAME">("DNI");
-  const [dniSearch, setDniSearch] = useState("");
-  const [nameSearch, setNameSearch] = useState("");
-  const [lastNameSearch, setLastNameSearch] = useState("");
-  const [appliedFilters, setAppliedFilters] = useState({
-    dni: "",
-    firstname: "",
-    lastname: "",
-  });
+  const [appliedFilters, setAppliedFilters] = useState<PatientTableFilters>(getEmptyPatientTableFilters);
 
   const columns: ColumnDef<PatientsListSchema>[] = [
     {
@@ -230,55 +220,11 @@ export const PatientsList = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  const handleSearch = () => {
-    if (searchType === "DNI") {
-      setAppliedFilters({
-        dni: dniSearch.trim(),
-        firstname: "",
-        lastname: "",
-      });
-      return;
-    }
-
-    setAppliedFilters({
-      dni: "",
-      firstname: nameSearch.trim(),
-      lastname: lastNameSearch.trim(),
-    });
-  };
-
-  const handleSearchTypeChange = (value: "DNI" | "NAME_SURNAME") => {
-    setSearchType(value);
-    setAppliedFilters({
-      dni: "",
-      firstname: "",
-      lastname: "",
-    });
-    setDniSearch("");
-    setNameSearch("");
-    setLastNameSearch("");
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchType === "DNI") {
-        setAppliedFilters({
-          dni: dniSearch.trim(),
-          firstname: "",
-          lastname: "",
-        });
-        return;
-      }
-
-      setAppliedFilters({
-        dni: "",
-        firstname: nameSearch.trim(),
-        lastname: lastNameSearch.trim(),
-      });
-    }, 350);
-
-    return () => clearTimeout(timer);
-  }, [searchType, dniSearch, nameSearch, lastNameSearch]);
+  const handleFiltersChange = useCallback((nextFilters: PatientTableFilters) => {
+    setAppliedFilters((currentFilters) =>
+      arePatientTableFiltersEqual(currentFilters, nextFilters) ? currentFilters : nextFilters
+    );
+  }, []);
 
   return (
     <>
@@ -286,75 +232,7 @@ export const PatientsList = () => {
       <div className="flex flex-1 flex-col">
         <div className="@container/main flex flex-1 flex-col gap-2">
           <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-            <div className="px-4 lg:px-6">
-              <div className="flex justify-end">
-                <div className="flex w-full max-w-4xl items-center gap-2">
-                  <Select
-                    value={searchType}
-                    onValueChange={(value) =>
-                      handleSearchTypeChange(value as "DNI" | "NAME_SURNAME")
-                    }
-                  >
-                    <SelectTrigger className="w-52">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="DNI">DNI</SelectItem>
-                      <SelectItem value="NAME_SURNAME">Nombre y Apellido</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  {searchType === "DNI" ? (
-                    <Input
-                      value={dniSearch}
-                      onChange={(event) => setDniSearch(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          handleSearch();
-                        }
-                      }}
-                      placeholder="Buscar por DNI..."
-                      maxLength={8}
-                      className="w-full"
-                    />
-                  ) : (
-                    <>
-                      <Input
-                        value={nameSearch}
-                        onChange={(event) => setNameSearch(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            handleSearch();
-                          }
-                        }}
-                        placeholder="Nombre"
-                        maxLength={40}
-                        className="w-full"
-                      />
-                      <Input
-                        value={lastNameSearch}
-                        onChange={(event) => setLastNameSearch(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            handleSearch();
-                          }
-                        }}
-                        placeholder="Apellido"
-                        maxLength={40}
-                        className="w-full"
-                      />
-                    </>
-                  )}
-
-                  <Button type="button" onClick={handleSearch}>
-                    Buscar
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <PatientTableSearch onFiltersChange={handleFiltersChange} />
             <DataTable
               fetchData={fetchData}
               columns={columns}

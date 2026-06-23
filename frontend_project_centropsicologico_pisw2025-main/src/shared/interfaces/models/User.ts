@@ -36,4 +36,4 @@ export interface User {
   updatedAt: Date;
 }
 
-export type UserMinimal = Pick<User, "id" | "firstName" | "lastName" | "dni"> & Partial<Pick<User, "roles">>;
+export type UserMinimal = Pick<User, "id" | "firstName" | "lastName" | "dni"> & Partial<Pick<User, "roles" | "workSchedule">>;

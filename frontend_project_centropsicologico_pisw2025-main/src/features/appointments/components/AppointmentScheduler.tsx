@@ -21,6 +21,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,7 +46,7 @@ import { useCreateAppointment, useUpdateAppointment, useUpdateAppointmentStatus 
 import { useAlert } from "@/shared/hooks/useAlert";
 import type { AppointmentEvent } from "@/shared/interfaces/apiResponses/getAllAppointmentEvents";
 import type { AppointmentViewResponse } from "@/shared/interfaces/apiResponses/getAppointmentByIdResponse";
-import type { AppointmentType, User } from "@/shared/interfaces/models";
+import type { AppointmentStatus, AppointmentType, User } from "@/shared/interfaces/models";
 import {
   allHourOptions,
   createId,
@@ -62,13 +72,21 @@ import {
   type TimeSlot,
 } from "../utils/appointmentScheduler";
 
-type SlotStatus = "available" | "appointment" | "blocked" | "selected" | "empty" | "unavailable";
+type SlotStatus = "available" | "appointment" | "canceled" | "blocked" | "selected" | "empty" | "unavailable";
 type CreationMode = "single" | "block";
+type BlockScheduleMode = "fixed" | "custom";
+type AgendaFilter = "all" | "today" | "week" | "upcoming";
 
 interface SlotState {
   status: SlotStatus;
   label?: string;
   appointmentId?: string;
+}
+
+interface AppointmentSchedulerProps {
+  psychologistId?: string;
+  hidePsychologistSelector?: boolean;
+  readOnly?: boolean;
 }
 
 interface SelectedSlot {
@@ -91,6 +109,7 @@ interface SchedulerAppointment {
   officeName: string;
   reason: string;
   type: AppointmentType;
+  status: AppointmentStatus;
 }
 
 interface AppointmentFormState {
@@ -115,9 +134,16 @@ interface BlockRule {
   endHour: number;
 }
 
+interface BlockPreview {
+  creatableCount: number;
+  occupiedCount: number;
+  outOfScheduleCount: number;
+}
+
 interface CalendarSlotProps {
   state: SlotState;
   ariaLabel?: string;
+  canDrag?: boolean;
   onClick?: () => void;
 }
 
@@ -167,6 +193,7 @@ const DroppableCalendarSlot = ({
   slotData,
   state,
   ariaLabel,
+  canDrag,
   onClick,
 }: DroppableCalendarSlotProps) => {
   const { isOver, setNodeRef } = useDroppable({
@@ -176,15 +203,18 @@ const DroppableCalendarSlot = ({
   });
 
   return (
-    <div ref={setNodeRef} className={isOver && !disabled ? "ring-2 ring-senses-secondary ring-offset-1" : undefined}>
-      <CalendarSlot ariaLabel={ariaLabel} onClick={onClick} state={state} />
+    <div
+      ref={setNodeRef}
+      className={`h-8 w-full ${isOver && !disabled ? "ring-2 ring-senses-secondary ring-offset-1" : ""}`}
+    >
+      <CalendarSlot ariaLabel={ariaLabel} canDrag={canDrag} onClick={onClick} state={state} />
     </div>
   );
 };
 
-const CalendarSlot = ({ state, ariaLabel, onClick }: CalendarSlotProps) => {
+const CalendarSlot = ({ state, ariaLabel, canDrag = true, onClick }: CalendarSlotProps) => {
   if (state.status === "appointment") {
-    const content = state.appointmentId ? (
+    const content = state.appointmentId && canDrag ? (
       <DraggableAppointmentContent appointmentId={state.appointmentId} label={state.label} />
     ) : (
       <div className="flex h-full items-center justify-center truncate rounded-sm bg-senses-primary px-1 text-[0.65rem] text-white">
@@ -198,6 +228,31 @@ const CalendarSlot = ({ state, ariaLabel, onClick }: CalendarSlotProps) => {
           <button
             aria-label={ariaLabel}
             className="h-full w-full rounded-sm focus:outline-none focus:ring-2 focus:ring-senses-secondary"
+            onClick={onClick}
+            type="button"
+          >
+            {content}
+          </button>
+        ) : (
+          content
+        )}
+      </div>
+    );
+  }
+
+  if (state.status === "canceled") {
+    const content = (
+      <div className="flex h-full items-center justify-center truncate rounded-sm bg-senses-danger/15 px-1 text-[0.65rem] font-semibold text-senses-danger line-through">
+        {state.label}
+      </div>
+    );
+
+    return (
+      <div className="h-8 border border-dotted border-senses-danger/30 bg-senses-danger/5 p-0.5">
+        {onClick ? (
+          <button
+            aria-label={ariaLabel}
+            className="h-full w-full rounded-sm focus:outline-none focus:ring-2 focus:ring-senses-danger/40"
             onClick={onClick}
             type="button"
           >
@@ -281,6 +336,7 @@ function mapEventToAppointment(event: AppointmentEvent): SchedulerAppointment {
     officeName: event.resource.officeName,
     reason: event.title,
     type: event.resource.type === "SOCIAL" ? "SOCIAL" : "PARTICULAR",
+    status: event.resource.status as AppointmentStatus,
   };
 }
 
@@ -292,8 +348,63 @@ function getScheduleForSlot(schedules: NormalizedWorkSchedule[], slot: SelectedS
   return getWorkScheduleForWeekday(schedules, getWeekdayIndex(slot.date));
 }
 
-export const AppointmentScheduler = () => {
-  const [selectedPsychologistId, setSelectedPsychologistId] = useState("");
+function rulesOverlap(firstRule: BlockRule, secondRule: BlockRule) {
+  const sharesWeekday = firstRule.weekdays.some((weekday) => secondRule.weekdays.includes(weekday));
+  if (!sharesWeekday) return false;
+
+  return firstRule.startHour < secondRule.endHour && secondRule.startHour < firstRule.endHour;
+}
+
+function getBlockRulesForPreview(
+  mode: BlockScheduleMode,
+  rules: BlockRule[],
+  weekdays: number[],
+  startHour: number,
+  endHour: number
+) {
+  if (mode === "custom") return rules;
+
+  return [
+    {
+      id: "fixed-preview-rule",
+      weekdays,
+      startHour,
+      endHour,
+    },
+  ];
+}
+
+function getWeekBounds(date: Date) {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - getWeekdayIndex(start));
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+}
+
+function isDateBetween(date: Date, start: Date, end: Date) {
+  return date >= start && date <= end;
+}
+
+function getShortDateLabel(date: Date) {
+  const label = date.toLocaleDateString("es-ES", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+export const AppointmentScheduler = ({
+  psychologistId,
+  hidePsychologistSelector = false,
+  readOnly = false,
+}: AppointmentSchedulerProps = {}) => {
+  const [selectedPsychologistId, setSelectedPsychologistId] = useState(psychologistId ?? "");
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -308,10 +419,13 @@ export const AppointmentScheduler = () => {
   const [pasteDialogOpen, setPasteDialogOpen] = useState(false);
   const [form, setForm] = useState<AppointmentFormState>(() => getEmptyForm());
   const [selectedPatientId, setSelectedPatientId] = useState("");
+  const [blockScheduleMode, setBlockScheduleMode] = useState<BlockScheduleMode>("fixed");
   const [blockWeekdays, setBlockWeekdays] = useState<number[]>([]);
   const [blockRules, setBlockRules] = useState<BlockRule[]>([]);
   const [feedback, setFeedback] = useState("");
   const [isAppointmentsPanelOpen, setIsAppointmentsPanelOpen] = useState(true);
+  const [agendaFilter, setAgendaFilter] = useState<AgendaFilter>("all");
+  const [appointmentToCancel, setAppointmentToCancel] = useState<SchedulerAppointment | null>(null);
   const [creatingBlock, setCreatingBlock] = useState(false);
   const [expandedWeekKeys, setExpandedWeekKeys] = useState<string[]>([]);
 
@@ -330,10 +444,15 @@ export const AppointmentScheduler = () => {
   const updateAppointmentStatus = useUpdateAppointmentStatus();
 
   useEffect(() => {
-    if (!selectedPsychologistId && psychologistSearch.psychologists.length > 0) {
+    if (psychologistId) {
+      setSelectedPsychologistId(psychologistId);
+      return;
+    }
+
+    if (!hidePsychologistSelector && !selectedPsychologistId && psychologistSearch.psychologists.length > 0) {
       setSelectedPsychologistId(psychologistSearch.psychologists[0].id);
     }
-  }, [psychologistSearch.psychologists, selectedPsychologistId]);
+  }, [hidePsychologistSelector, psychologistId, psychologistSearch.psychologists, selectedPsychologistId]);
 
   const { data: selectedPsychologist, isLoading: psychologistLoading } = useQuery<User>({
     queryKey: ["appointment-scheduler", "psychologist", selectedPsychologistId],
@@ -360,13 +479,22 @@ export const AppointmentScheduler = () => {
     staleTime: 1000 * 60,
   });
 
-  const workSchedules = useMemo(
-    () => normalizeWorkSchedule(selectedPsychologist?.workSchedule),
-    [selectedPsychologist?.workSchedule]
+  const selectedPsychologistFromSearch = useMemo(
+    () => psychologistSearch.psychologists.find((psychologist) => psychologist.id === selectedPsychologistId),
+    [psychologistSearch.psychologists, selectedPsychologistId]
   );
 
-  const selectedPsychologistName = selectedPsychologist
-    ? `${selectedPsychologist.firstName} ${selectedPsychologist.lastName}`
+  const selectedPsychologistWithSchedule = selectedPsychologist?.workSchedule?.length
+    ? selectedPsychologist
+    : selectedPsychologistFromSearch;
+
+  const workSchedules = useMemo(
+    () => normalizeWorkSchedule(selectedPsychologistWithSchedule?.workSchedule),
+    [selectedPsychologistWithSchedule?.workSchedule]
+  );
+
+  const selectedPsychologistName = selectedPsychologistWithSchedule
+    ? `${selectedPsychologistWithSchedule.firstName} ${selectedPsychologistWithSchedule.lastName}`
     : "Seleccione un psicólogo";
 
   const appointments = useMemo(
@@ -388,6 +516,101 @@ export const AppointmentScheduler = () => {
       return dateComparison || first.startHour - second.startHour;
     });
 
+  const blockPreview = useMemo<BlockPreview>(() => {
+    if (form.mode !== "block") {
+      return { creatableCount: 0, occupiedCount: 0, outOfScheduleCount: 0 };
+    }
+
+    const dates = getDatesBetween(parseDateInput(form.blockStartDate), parseDateInput(form.blockEndDate));
+    const rules = getBlockRulesForPreview(
+      blockScheduleMode,
+      blockRules,
+      blockWeekdays,
+      form.blockStartHour,
+      form.blockEndHour
+    );
+    const occupiedSlots = new Set(
+      appointments.map((appointment) => getSlotKey(appointment.dateKey, appointment.startHour))
+    );
+    const preview: BlockPreview = { creatableCount: 0, occupiedCount: 0, outOfScheduleCount: 0 };
+
+    dates.forEach((date) => {
+      const weekdayIndex = getWeekdayIndex(date);
+      const dateKey = getDateKey(date);
+      const workSchedule = getWorkScheduleForWeekday(workSchedules, weekdayIndex);
+
+      rules.forEach((rule) => {
+        if (!rule.weekdays.includes(weekdayIndex)) return;
+
+        for (let hour = rule.startHour; hour < rule.endHour; hour += 1) {
+          const slot = { startHour: hour, endHour: hour + 1, label: formatSlotRange(hour, hour + 1) };
+          const slotKey = getSlotKey(dateKey, hour);
+
+          if (!isSlotInsideWorkSchedule(slot, workSchedule)) {
+            preview.outOfScheduleCount += 1;
+            continue;
+          }
+
+          if (occupiedSlots.has(slotKey)) {
+            preview.occupiedCount += 1;
+            continue;
+          }
+
+          preview.creatableCount += 1;
+          occupiedSlots.add(slotKey);
+        }
+      });
+    });
+
+    return preview;
+  }, [appointments, blockRules, blockScheduleMode, blockWeekdays, form, workSchedules]);
+
+  const agendaToday = new Date();
+  agendaToday.setHours(0, 0, 0, 0);
+  const agendaTodayKey = getDateKey(agendaToday);
+  const agendaWeekBounds = getWeekBounds(agendaToday);
+
+  const weekAppointmentsCount = visibleAppointments.filter((appointment) =>
+    isDateBetween(parseDateInput(appointment.dateKey), agendaWeekBounds.start, agendaWeekBounds.end)
+  ).length;
+
+  const nextAppointment = visibleAppointments.find((appointment) => {
+    const appointmentDate = parseDateInput(appointment.dateKey);
+    appointmentDate.setHours(appointment.startHour, 0, 0, 0);
+    return appointmentDate >= new Date();
+  });
+
+  const filteredAgendaAppointments = visibleAppointments.filter((appointment) => {
+    const appointmentDate = parseDateInput(appointment.dateKey);
+
+    if (agendaFilter === "today") return appointment.dateKey === agendaTodayKey;
+    if (agendaFilter === "week") return isDateBetween(appointmentDate, agendaWeekBounds.start, agendaWeekBounds.end);
+    if (agendaFilter === "upcoming") {
+      appointmentDate.setHours(appointment.startHour, 0, 0, 0);
+      return appointmentDate >= new Date();
+    }
+
+    return true;
+  });
+
+  const groupedAgendaAppointments = filteredAgendaAppointments.reduce<
+    Array<{ dateKey: string; date: Date; appointments: SchedulerAppointment[] }>
+  >((groups, appointment) => {
+    const existingGroup = groups.find((group) => group.dateKey === appointment.dateKey);
+    if (existingGroup) {
+      existingGroup.appointments.push(appointment);
+      return groups;
+    }
+
+    groups.push({
+      dateKey: appointment.dateKey,
+      date: parseDateInput(appointment.dateKey),
+      appointments: [appointment],
+    });
+
+    return groups;
+  }, []);
+
   const getWeekKey = (weekIndex: number) =>
     `${visibleMonth.getFullYear()}-${visibleMonth.getMonth()}-${weekIndex}`;
 
@@ -400,6 +623,8 @@ export const AppointmentScheduler = () => {
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
+    if (readOnly) return;
+
     const appointmentId = event.active.data.current?.appointmentId;
     const targetSlot = event.over?.data.current as DroppableSlotData | undefined;
 
@@ -457,7 +682,11 @@ export const AppointmentScheduler = () => {
     }
 
     if (appointment) {
-      return { status: "appointment", label: getAppointmentPatientName(appointment), appointmentId: appointment.id };
+      return {
+        status: appointment.status === "CANCELED" ? "canceled" : "appointment",
+        label: getAppointmentPatientName(appointment),
+        appointmentId: appointment.id,
+      };
     }
 
     if (!isSlotInsideWorkSchedule(slot, workSchedule)) {
@@ -468,6 +697,8 @@ export const AppointmentScheduler = () => {
   };
 
   const openCreateDialog = (day: CalendarDay, slot: TimeSlot) => {
+    if (readOnly) return;
+
     const state = getSlotState(day, slot);
     if (state.status !== "available") return;
 
@@ -495,6 +726,7 @@ export const AppointmentScheduler = () => {
 
     setSelectedPatientId("");
     setForm(getEmptyForm(nextSelectedSlot));
+    setBlockScheduleMode("fixed");
     setBlockWeekdays([day.weekdayIndex]);
     setBlockRules([]);
     setDialogOpen(true);
@@ -522,6 +754,7 @@ export const AppointmentScheduler = () => {
   };
 
   const handleCopyAppointment = () => {
+    if (readOnly) return;
     if (!selectedAppointmentDetail) return;
     setCopiedAppointment(selectedAppointmentDetail);
     setAppointmentDetailOpen(false);
@@ -632,6 +865,7 @@ export const AppointmentScheduler = () => {
     setSelectedSlot(targetSlot);
     setSelectedPatientId("");
     setForm(getEmptyForm(targetSlot));
+    setBlockScheduleMode("fixed");
     setBlockWeekdays([getWeekdayIndex(targetSlot.date)]);
     setBlockRules([]);
     setFeedback("");
@@ -674,15 +908,23 @@ export const AppointmentScheduler = () => {
       return;
     }
 
+    const nextRule: BlockRule = {
+      id: createId(),
+      weekdays: blockWeekdays,
+      startHour: form.blockStartHour,
+      endHour: form.blockEndHour,
+    };
+
+    if (blockRules.some((rule) => rulesOverlap(rule, nextRule))) {
+      setFeedback("Esta regla se cruza con otra regla ya agregada.");
+      return;
+    }
+
     setBlockRules((currentRules) => [
       ...currentRules,
-      {
-        id: createId(),
-        weekdays: blockWeekdays,
-        startHour: form.blockStartHour,
-        endHour: form.blockEndHour,
-      },
+      nextRule,
     ]);
+    setBlockWeekdays([]);
     setFeedback("");
   };
 
@@ -732,12 +974,17 @@ export const AppointmentScheduler = () => {
       return;
     }
 
+    if (blockScheduleMode === "custom" && blockRules.length === 0) {
+      setFeedback("Agrega al menos una regla con días y horario antes de agendar.");
+      return;
+    }
+
     const rules =
-      blockRules.length > 0
+      blockScheduleMode === "custom"
         ? blockRules
         : [
             {
-              id: "draft-rule",
+              id: "fixed-rule",
               weekdays: blockWeekdays,
               startHour: form.blockStartHour,
               endHour: form.blockEndHour,
@@ -858,11 +1105,12 @@ export const AppointmentScheduler = () => {
   };
 
   const handleCancelAppointment = async (appointmentId: string) => {
-    if (!confirm("¿Deseas cancelar esta cita?")) return;
+    if (readOnly) return;
 
     try {
       await updateAppointmentStatus.mutateAsync({ id: appointmentId, status: "CANCELED" });
       await refetchAppointments();
+      setAppointmentToCancel(null);
       showAlert("Cita cancelada", "success");
     } catch (error) {
       showAlert(error instanceof Error ? error.message : "No se pudo cancelar la cita", "error");
@@ -879,30 +1127,37 @@ export const AppointmentScheduler = () => {
             <div className="flex flex-col gap-4 border-b border-slate-200 p-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-                  <SearchableSelect
-                    id="appointment-scheduler-psychologist"
-                    label="Disponibilidad del psicólogo"
-                    placeholder="Buscar psicólogo..."
-                    value={selectedPsychologistId}
-                    onValueChange={(value) => {
-                      setSelectedPsychologistId(value);
-                      setCopiedAppointment(null);
-                      setFeedback("");
-                    }}
-                    onSearch={psychologistSearch.setSearchQuery}
-                    options={psychologistSearch.psychologists.map((psychologist) => ({
-                      value: psychologist.id,
-                      label: `${psychologist.firstName} ${psychologist.lastName} - DNI: ${psychologist.dni}`,
-                    }))}
-                    loading={psychologistSearch.isLoading}
-                    helper="Seleccione un psicólogo para ver su disponibilidad y citas programadas"
-                  />
+                  {!hidePsychologistSelector && (
+                    <SearchableSelect
+                      id="appointment-scheduler-psychologist"
+                      label="Disponibilidad del psicólogo"
+                      placeholder="Buscar psicólogo..."
+                      value={selectedPsychologistId}
+                      onValueChange={(value) => {
+                        setSelectedPsychologistId(value);
+                        setCopiedAppointment(null);
+                        setFeedback("");
+                      }}
+                      onSearch={psychologistSearch.setSearchQuery}
+                      options={psychologistSearch.psychologists.map((psychologist) => ({
+                        value: psychologist.id,
+                        label: `${psychologist.firstName} ${psychologist.lastName} - DNI: ${psychologist.dni}`,
+                      }))}
+                      loading={psychologistSearch.isLoading}
+                      helper="Seleccione un psicólogo para ver su disponibilidad y citas programadas"
+                    />
+                  )}
                   {isBusy && <Loading message="Cargando horario..." />}
                 </div>
 
                 <h2 className="mt-2 text-lg font-semibold text-senses-primary">
                   Disponibilidad de {selectedPsychologistName}
                 </h2>
+                {readOnly && (
+                  <div className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
+                    Solo visualización
+                  </div>
+                )}
                 <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-600">
                   <div className="flex items-center gap-1.5">
                     <span className="inline-block h-3 w-3 rounded-sm border border-senses-secondary/40 bg-senses-secondary/15" />
@@ -991,7 +1246,7 @@ export const AppointmentScheduler = () => {
               </div>
             </div>
 
-            {copiedAppointment && (
+            {!readOnly && copiedAppointment && (
               <div className="mx-4 mt-4 flex flex-col gap-3 rounded-lg border border-senses-secondary/40 bg-senses-secondary/10 p-3 text-sm text-slate-700 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-semibold text-senses-primary">
@@ -1107,9 +1362,9 @@ export const AppointmentScheduler = () => {
                                 const state = getSlotState(day, slot);
                                 const appointment = getAppointmentForSlot(day.key, slot.startHour);
                                 const workSchedule = getWorkScheduleForWeekday(workSchedules, day.weekdayIndex);
-                                const targetSlot =
-                                  workSchedule && state.status === "available"
-                                    ? {
+                            const targetSlot =
+                              !readOnly && workSchedule && state.status === "available"
+                                ? {
                                         date: day.date,
                                         dateKey: day.key,
                                         startHour: slot.startHour,
@@ -1125,15 +1380,18 @@ export const AppointmentScheduler = () => {
                                     ariaLabel={
                                       appointment
                                         ? `Ver cita de ${getAppointmentPatientName(appointment)}`
-                                        : `Crear cita el ${getLongDateLabel(day.date)} de ${slot.label}`
-                                    }
-                                    disabled={!targetSlot}
+                                    : readOnly
+                                      ? `${getLongDateLabel(day.date)} de ${slot.label}`
+                                      : `Crear cita el ${getLongDateLabel(day.date)} de ${slot.label}`
+                                }
+                                canDrag={!readOnly}
+                                disabled={!targetSlot}
                                     droppableId={`slot-${day.key}-${slot.startHour}`}
                                     key={slot.startHour}
                                     onClick={
                                       appointment
                                         ? () => openAppointmentDetail(appointment)
-                                        : state.status === "available"
+                                        : !readOnly && state.status === "available"
                                           ? () => openCreateDialog(day, slot)
                                           : undefined
                                     }
@@ -1154,18 +1412,20 @@ export const AppointmentScheduler = () => {
           </main>
 
           {isAppointmentsPanelOpen && (
-            <aside className="custom-scroll flex max-h-full w-full flex-col overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm xl:w-80 xl:shrink-0">
+            <aside className="custom-scroll flex max-h-full w-full flex-col overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:w-80 xl:shrink-0">
               <div className="flex-1 p-5">
                 <div className="mb-4 border-b border-slate-200 pb-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h2 className="text-lg font-bold text-senses-primary">Citas programadas</h2>
+                      <h2 className="text-lg font-bold text-senses-primary">Agenda del mes</h2>
                       <p className="mt-1 text-sm text-slate-500">
-                        Haz clic en una casilla disponible para crear una cita o configurar bloques.
+                        {readOnly
+                          ? "Consulta tus próximas citas y disponibilidad."
+                          : "Revisa, filtra y administra las citas del calendario."}
                       </p>
                     </div>
                     <Button
-                      aria-label="Ocultar citas programadas"
+                      aria-label="Ocultar agenda del mes"
                       className="h-8 w-8 shrink-0 border-slate-300 bg-white p-0 text-slate-600 hover:bg-slate-100"
                       onClick={() => setIsAppointmentsPanelOpen(false)}
                       type="button"
@@ -1174,58 +1434,124 @@ export const AppointmentScheduler = () => {
                       <FaChevronRight className="h-3 w-3" />
                     </Button>
                   </div>
-                  <div className="mt-3 inline-flex rounded-full bg-senses-secondary/20 px-2.5 py-1 text-xs font-semibold text-senses-primary">
-                    {visibleAppointments.length} citas este mes
+
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+                    <div className="rounded-md bg-senses-secondary/15 px-2 py-2 text-senses-primary">
+                      <p className="text-base font-bold leading-none">{visibleAppointments.length}</p>
+                      <p className="mt-1 text-[0.65rem] font-medium">Mes</p>
+                    </div>
+                    <div className="rounded-md bg-slate-100 px-2 py-2 text-slate-600">
+                      <p className="text-base font-bold leading-none">{weekAppointmentsCount}</p>
+                      <p className="mt-1 text-[0.65rem] font-medium">Semana</p>
+                    </div>
+                    <div className="rounded-md bg-slate-100 px-2 py-2 text-slate-600">
+                      <p className="truncate text-[0.7rem] font-bold leading-none">
+                        {nextAppointment ? formatHour(nextAppointment.startHour) : "-"}
+                      </p>
+                      <p className="mt-1 text-[0.65rem] font-medium">Próxima</p>
+                    </div>
+                  </div>
+
+                  {nextAppointment && (
+                    <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                      Próxima: {getShortDateLabel(parseDateInput(nextAppointment.dateKey))} ·{" "}
+                      {formatSlotRange(nextAppointment.startHour, nextAppointment.endHour)}
+                    </p>
+                  )}
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    {[
+                      { value: "all", label: "Todas" },
+                      { value: "today", label: "Hoy" },
+                      { value: "week", label: "Semana" },
+                      { value: "upcoming", label: "Próximas" },
+                    ].map((filter) => (
+                      <button
+                        className={`rounded-full border px-2 py-1 font-semibold transition ${
+                          agendaFilter === filter.value
+                            ? "border-senses-primary bg-senses-primary text-white"
+                            : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                        }`}
+                        key={filter.value}
+                        onClick={() => setAgendaFilter(filter.value as AgendaFilter)}
+                        type="button"
+                      >
+                        {filter.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {visibleAppointments.length === 0 ? (
+                {filteredAgendaAppointments.length === 0 ? (
                   <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">
-                    No hay citas creadas para este mes.
+                    No hay citas para el filtro seleccionado.
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {visibleAppointments.map((appointment) => (
-                      <div
-                        className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm"
-                        key={appointment.id}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <button
-                            className="min-w-0 text-left"
-                            onClick={() => openAppointmentDetail(appointment)}
-                            type="button"
-                          >
-                            <p className="font-semibold text-senses-primary">
-                              {getAppointmentPatientName(appointment)}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {parseDateInput(appointment.dateKey).toLocaleDateString("es-ES", {
-                                day: "numeric",
-                                month: "long",
-                              })}{" "}
-                              · {formatSlotRange(appointment.startHour, appointment.endHour)}
-                            </p>
-                          </button>
-                          <Button
-                            aria-label={`Cancelar cita de ${getAppointmentPatientName(appointment)}`}
-                            className="h-7 w-7 border-senses-danger/30 bg-white p-0 text-senses-danger hover:bg-senses-danger/10 hover:text-senses-danger"
-                            onClick={() => void handleCancelAppointment(appointment.id)}
-                            type="button"
-                            variant="outline"
-                          >
-                            <FaTrashAlt className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-1 text-[0.65rem]">
-                          <span className="rounded-full bg-senses-secondary/20 px-2 py-0.5 text-senses-primary">
-                            {appointment.type === "PARTICULAR" ? "Particular" : "Caso social"}
-                          </span>
-                          <span className="rounded-full bg-white px-2 py-0.5 text-slate-600">
-                            {appointment.officeName}
+                  <div className="space-y-4">
+                    {groupedAgendaAppointments.map((group) => (
+                      <section key={group.dateKey}>
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <h3 className="text-sm font-semibold text-senses-primary">
+                            {getShortDateLabel(group.date)}
+                          </h3>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[0.65rem] font-semibold text-slate-500">
+                            {group.appointments.length} citas
                           </span>
                         </div>
-                      </div>
+
+                        <div className="space-y-2">
+                          {group.appointments.map((appointment) => (
+                            <div
+                              className={`rounded-md border p-2 text-sm ${
+                                appointment.status === "CANCELED"
+                                  ? "border-senses-danger/30 bg-senses-danger/5"
+                                  : "border-slate-200 bg-slate-50"
+                              }`}
+                              key={appointment.id}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <button
+                                  className="min-w-0 flex-1 text-left"
+                                  onClick={() => openAppointmentDetail(appointment)}
+                                  type="button"
+                                >
+                                  <p className="text-xs font-semibold text-slate-500">
+                                    {formatSlotRange(appointment.startHour, appointment.endHour)}
+                                  </p>
+                                  <p
+                                    className={`truncate font-semibold ${
+                                      appointment.status === "CANCELED"
+                                        ? "text-senses-danger line-through"
+                                        : "text-senses-primary"
+                                    }`}
+                                  >
+                                    {getAppointmentPatientName(appointment)}
+                                  </p>
+                                  <p className="mt-1 truncate text-[0.65rem] text-slate-500">
+                                    {appointment.type === "PARTICULAR" ? "Particular" : "Caso social"} · {appointment.officeName}
+                                  </p>
+                                  {appointment.status === "CANCELED" && (
+                                    <span className="mt-1 inline-flex rounded-full bg-senses-danger/10 px-2 py-0.5 text-[0.6rem] font-semibold text-senses-danger">
+                                      Cancelada
+                                    </span>
+                                  )}
+                                </button>
+                                {!readOnly && appointment.status !== "CANCELED" && (
+                                  <Button
+                                    aria-label={`Cancelar cita de ${getAppointmentPatientName(appointment)}`}
+                                    className="h-7 w-7 shrink-0 border-senses-danger/30 bg-white p-0 text-senses-danger hover:bg-senses-danger/10 hover:text-senses-danger"
+                                    onClick={() => setAppointmentToCancel(appointment)}
+                                    type="button"
+                                    variant="outline"
+                                  >
+                                    <FaTrashAlt className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
                     ))}
                   </div>
                 )}
@@ -1234,6 +1560,35 @@ export const AppointmentScheduler = () => {
           )}
         </div>
       </div>
+
+      <AlertDialog open={Boolean(appointmentToCancel)} onOpenChange={(open) => !open && setAppointmentToCancel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar cita</AlertDialogTitle>
+            <AlertDialogDescription>
+              {appointmentToCancel
+                ? `¿Deseas cancelar la cita de ${getAppointmentPatientName(appointmentToCancel)} el ${getShortDateLabel(
+                    parseDateInput(appointmentToCancel.dateKey)
+                  )} de ${formatSlotRange(appointmentToCancel.startHour, appointmentToCancel.endHour)}?`
+                : "¿Deseas cancelar esta cita?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Volver</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-senses-danger text-white hover:bg-senses-danger/90"
+              disabled={updateAppointmentStatus.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (!appointmentToCancel) return;
+                void handleCancelAppointment(appointmentToCancel.id);
+              }}
+            >
+              {updateAppointmentStatus.isPending ? "Cancelando..." : "Cancelar cita"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="custom-scroll max-h-[90vh] overflow-y-auto sm:max-w-2xl">
@@ -1371,8 +1726,35 @@ export const AppointmentScheduler = () => {
                 <div className="mb-4">
                   <h3 className="font-semibold text-senses-primary">Configuración por bloques</h3>
                   <p className="text-xs text-slate-500">
-                    Agrega más de una regla si algunos días tienen horarios distintos.
+                    Elige si todos los días usarán el mismo horario o si cada grupo de días tendrá su propia regla.
                   </p>
+                </div>
+
+                <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button
+                    className={`rounded-md border px-3 py-2 text-left text-sm transition ${
+                      blockScheduleMode === "fixed"
+                        ? "border-senses-primary bg-senses-primary text-white"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-senses-primary/10 hover:text-senses-primary"
+                    }`}
+                    onClick={() => setBlockScheduleMode("fixed")}
+                    type="button"
+                  >
+                    <span className="block font-semibold">Mismo horario</span>
+                    <span className="mt-1 block text-xs opacity-80">Un horario para todos los días seleccionados.</span>
+                  </button>
+                  <button
+                    className={`rounded-md border px-3 py-2 text-left text-sm transition ${
+                      blockScheduleMode === "custom"
+                        ? "border-senses-primary bg-senses-primary text-white"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-senses-primary/10 hover:text-senses-primary"
+                    }`}
+                    onClick={() => setBlockScheduleMode("custom")}
+                    type="button"
+                  >
+                    <span className="block font-semibold">Horarios distintos</span>
+                    <span className="mt-1 block text-xs opacity-80">Agrega reglas como lunes 11-12 y viernes 2-3.</span>
+                  </button>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
@@ -1400,7 +1782,9 @@ export const AppointmentScheduler = () => {
                   </div>
 
                   <div className="md:col-span-2">
-                    <span className="mb-2 block text-sm font-medium text-slate-700">Días</span>
+                    <span className="mb-2 block text-sm font-medium text-slate-700">
+                      {blockScheduleMode === "custom" ? "Días de esta regla" : "Días"}
+                    </span>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {weekDayNames.map((dayName, index) => {
                         const selected = blockWeekdays.includes(index);
@@ -1436,7 +1820,7 @@ export const AppointmentScheduler = () => {
 
                   <div>
                     <Label className="mb-1" htmlFor="scheduler-block-start-hour">
-                      Hora inicio
+                      {blockScheduleMode === "custom" ? "Hora inicio de esta regla" : "Hora inicio"}
                     </Label>
                     <select
                       className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none transition focus:border-senses-secondary focus:ring-2 focus:ring-senses-secondary/30"
@@ -1461,7 +1845,7 @@ export const AppointmentScheduler = () => {
 
                   <div>
                     <Label className="mb-1" htmlFor="scheduler-block-end-hour">
-                      Hora fin
+                      {blockScheduleMode === "custom" ? "Hora fin de esta regla" : "Hora fin"}
                     </Label>
                     <select
                       className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none transition focus:border-senses-secondary focus:ring-2 focus:ring-senses-secondary/30"
@@ -1480,19 +1864,22 @@ export const AppointmentScheduler = () => {
                   </div>
                 </div>
 
-                <div className="mt-4 flex justify-end">
-                  <Button
-                    className="border-senses-primary text-senses-primary hover:bg-senses-primary/10"
-                    onClick={handleAddBlockRule}
-                    type="button"
-                    variant="outline"
-                  >
-                    Agregar bloque
-                  </Button>
-                </div>
+                {blockScheduleMode === "custom" && (
+                  <div className="mt-4 flex justify-end">
+                    <Button
+                      className="border-senses-primary text-senses-primary hover:bg-senses-primary/10"
+                      onClick={handleAddBlockRule}
+                      type="button"
+                      variant="outline"
+                    >
+                      Agregar regla
+                    </Button>
+                  </div>
+                )}
 
-                {blockRules.length > 0 && (
+                {blockScheduleMode === "custom" && blockRules.length > 0 && (
                   <div className="mt-4 space-y-2">
+                    <p className="text-sm font-medium text-slate-700">Reglas agregadas</p>
                     {blockRules.map((rule) => (
                       <div
                         className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white p-2 text-sm"
@@ -1515,6 +1902,21 @@ export const AppointmentScheduler = () => {
                     ))}
                   </div>
                 )}
+
+                <div className="mt-4 rounded-md border border-senses-secondary/30 bg-white p-3 text-sm">
+                  <p className="font-semibold text-senses-primary">Resumen del bloque</p>
+                  <div className="mt-2 grid gap-2 text-xs text-slate-600 sm:grid-cols-3">
+                    <span className="rounded-full bg-senses-secondary/15 px-2 py-1 text-senses-primary">
+                      {blockPreview.creatableCount} citas por crear
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-2 py-1">
+                      {blockPreview.occupiedCount} horarios ocupados
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-2 py-1">
+                      {blockPreview.outOfScheduleCount} fuera de horario
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1550,7 +1952,9 @@ export const AppointmentScheduler = () => {
           <DialogHeader>
             <DialogTitle className="text-senses-primary">Detalle de cita</DialogTitle>
             <DialogDescription>
-              Revisa la información de la cita o cópiala para pegarla en otro horario.
+              {readOnly
+                ? "Revisa la información de la cita."
+                : "Revisa la información de la cita o cópiala para pegarla en otro horario."}
             </DialogDescription>
           </DialogHeader>
 
@@ -1603,6 +2007,17 @@ export const AppointmentScheduler = () => {
                   {selectedAppointmentDetail.type === "PARTICULAR" ? "Particular" : "Caso social"}
                 </p>
               </div>
+
+              <div>
+                <span className="text-xs font-medium uppercase text-slate-500">Estado</span>
+                <p
+                  className={`font-semibold ${
+                    selectedAppointmentDetail.status === "CANCELED" ? "text-senses-danger" : "text-slate-700"
+                  }`}
+                >
+                  {selectedAppointmentDetail.status === "CANCELED" ? "Cancelada" : "Activa"}
+                </p>
+              </div>
             </div>
           ) : (
             <Loading message="Cargando cita..." />
@@ -1617,15 +2032,17 @@ export const AppointmentScheduler = () => {
             >
               Cerrar
             </Button>
-            <Button
-              className="bg-senses-primary text-white hover:bg-senses-primary/90"
-              disabled={!selectedAppointmentDetail}
-              onClick={handleCopyAppointment}
-              type="button"
-            >
-              <Copy className="h-4 w-4" />
-              Copiar cita
-            </Button>
+            {!readOnly && selectedAppointmentDetail?.status !== "CANCELED" && (
+              <Button
+                className="bg-senses-primary text-white hover:bg-senses-primary/90"
+                disabled={!selectedAppointmentDetail}
+                onClick={handleCopyAppointment}
+                type="button"
+              >
+                <Copy className="h-4 w-4" />
+                Copiar cita
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
