@@ -8,12 +8,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useAuthStore } from "@/store/auth/auth.store";
+import { useAuth } from "@/store/auth/auth.store";
 import { Megaphone } from "lucide-react";
 
 export const GlobalAnnouncementModal = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const roleSelected = useAuthStore((state) => state.roleSelected);
+  const roleSelected = useAuth((state) => state.roleSelected);
 
   // Simulamos que la alerta llega del backend después de cargar la página
   useEffect(() => {

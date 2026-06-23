@@ -2,6 +2,7 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import type { SiteHeaderProps } from "../interfaces/ui/SiteHeaderProps"
 import { IoArrowBackOutline } from "react-icons/io5";
+import { NotificationBell } from "./NotificationBell";
 
 export const SiteHeader = ({ title, backButton, onBackButtonClick }: SiteHeaderProps) => {
   return (
@@ -22,8 +23,11 @@ export const SiteHeader = ({ title, backButton, onBackButtonClick }: SiteHeaderP
           orientation="vertical"
           className="mx-2 data-[orientation=vertical]:h-8"
         />
-        <div className="lg:flex w-full lg:items-center lg:justify-center">
+        <div className="lg:flex flex-1 lg:items-center lg:justify-center">
           <h1 className="text-xl md:text-3xl font-semibold tracking-tight first:mt-0">{title}</h1>
+        </div>
+        <div className="flex items-center ml-auto pl-4">
+          <NotificationBell />
         </div>
 
       </div>
