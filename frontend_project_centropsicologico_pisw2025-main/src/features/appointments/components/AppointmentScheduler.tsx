@@ -1,4 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  DndContext,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import { useQuery } from "@tanstack/react-query";
 import { FaChevronLeft, FaChevronRight, FaTrashAlt } from "react-icons/fa";
 import { Copy } from "lucide-react";
@@ -22,7 +32,7 @@ import { usePsychologistSearchByNameQuery } from "@/features/systemUsers/hooks";
 import { getUserByIdApi } from "@/features/systemUsers/api/systemUsersApi";
 import { getAppointmentEventsByPsychologistApi } from "@/features/schedules/api/schedulesApi";
 import { getAppointmentByIdApi } from "../api/appointmentsApi";
-import { useCreateAppointment, useUpdateAppointmentStatus } from "../hooks/useAppointmentMutations";
+import { useCreateAppointment, useUpdateAppointment, useUpdateAppointmentStatus } from "../hooks/useAppointmentMutations";
 import { useAlert } from "@/shared/hooks/useAlert";
 import type { AppointmentEvent } from "@/shared/interfaces/apiResponses/getAllAppointmentEvents";
 import type { AppointmentViewResponse } from "@/shared/interfaces/apiResponses/getAppointmentByIdResponse";
@@ -58,6 +68,7 @@ type CreationMode = "single" | "block";
 interface SlotState {
   status: SlotStatus;
   label?: string;
+  appointmentId?: string;
 }
 
 interface SelectedSlot {
@@ -110,9 +121,72 @@ interface CalendarSlotProps {
   onClick?: () => void;
 }
 
+interface DroppableSlotData {
+  date: Date;
+  dateKey: string;
+  startHour: number;
+  endHour: number;
+  label: string;
+  officeId: string;
+  officeName: string;
+}
+
+interface DroppableCalendarSlotProps extends CalendarSlotProps {
+  disabled: boolean;
+  droppableId: string;
+  slotData?: DroppableSlotData;
+}
+
+const DraggableAppointmentContent = ({ appointmentId, label }: { appointmentId: string; label?: string }) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `appointment-${appointmentId}`,
+    data: { appointmentId },
+  });
+  const style = {
+    transform: CSS.Translate.toString(transform),
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`flex h-full items-center justify-center truncate rounded-sm bg-senses-primary px-1 text-[0.65rem] text-white touch-none cursor-grab active:cursor-grabbing ${
+        isDragging ? "opacity-60 shadow-md" : ""
+      }`}
+    >
+      {label}
+    </div>
+  );
+};
+
+const DroppableCalendarSlot = ({
+  disabled,
+  droppableId,
+  slotData,
+  state,
+  ariaLabel,
+  onClick,
+}: DroppableCalendarSlotProps) => {
+  const { isOver, setNodeRef } = useDroppable({
+    id: droppableId,
+    data: slotData,
+    disabled,
+  });
+
+  return (
+    <div ref={setNodeRef} className={isOver && !disabled ? "ring-2 ring-senses-secondary ring-offset-1" : undefined}>
+      <CalendarSlot ariaLabel={ariaLabel} onClick={onClick} state={state} />
+    </div>
+  );
+};
+
 const CalendarSlot = ({ state, ariaLabel, onClick }: CalendarSlotProps) => {
   if (state.status === "appointment") {
-    const content = (
+    const content = state.appointmentId ? (
+      <DraggableAppointmentContent appointmentId={state.appointmentId} label={state.label} />
+    ) : (
       <div className="flex h-full items-center justify-center truncate rounded-sm bg-senses-primary px-1 text-[0.65rem] text-white">
         {state.label}
       </div>
@@ -239,11 +313,20 @@ export const AppointmentScheduler = () => {
   const [feedback, setFeedback] = useState("");
   const [isAppointmentsPanelOpen, setIsAppointmentsPanelOpen] = useState(true);
   const [creatingBlock, setCreatingBlock] = useState(false);
+  const [expandedWeekKeys, setExpandedWeekKeys] = useState<string[]>([]);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
   const { showAlert } = useAlert();
   const patientSearch = usePatientSearchQuery();
   const psychologistSearch = usePsychologistSearchByNameQuery();
   const createAppointmentMutation = useCreateAppointment();
+  const updateAppointmentMutation = useUpdateAppointment();
   const updateAppointmentStatus = useUpdateAppointmentStatus();
 
   useEffect(() => {
@@ -292,7 +375,6 @@ export const AppointmentScheduler = () => {
   );
 
   const monthWeeks = generateMonthWeeks(visibleMonth);
-  const visibleSlots = shiftSlots[shift];
   const visibleAppointments = appointments
     .filter((appointment) => {
       const appointmentDate = parseDateInput(appointment.dateKey);
@@ -305,6 +387,49 @@ export const AppointmentScheduler = () => {
       const dateComparison = first.dateKey.localeCompare(second.dateKey);
       return dateComparison || first.startHour - second.startHour;
     });
+
+  const getWeekKey = (weekIndex: number) =>
+    `${visibleMonth.getFullYear()}-${visibleMonth.getMonth()}-${weekIndex}`;
+
+  const toggleExpandedWeek = (weekKey: string) => {
+    setExpandedWeekKeys((currentKeys) =>
+      currentKeys.includes(weekKey)
+        ? currentKeys.filter((currentKey) => currentKey !== weekKey)
+        : [...currentKeys, weekKey]
+    );
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const appointmentId = event.active.data.current?.appointmentId;
+    const targetSlot = event.over?.data.current as DroppableSlotData | undefined;
+
+    if (!appointmentId || !targetSlot || !selectedPsychologistId) return;
+
+    const appointment = appointments.find((item) => item.id === appointmentId);
+    if (
+      appointment?.dateKey === targetSlot.dateKey &&
+      appointment.startHour === targetSlot.startHour &&
+      appointment.endHour === targetSlot.endHour
+    ) {
+      return;
+    }
+
+    try {
+      await updateAppointmentMutation.mutateAsync({
+        id: appointmentId,
+        appointmentToUpdate: {
+          startDate: createLocalIso(targetSlot.dateKey, targetSlot.startHour),
+          endDate: createLocalIso(targetSlot.dateKey, targetSlot.endHour),
+          psychologistId: selectedPsychologistId,
+          officeId: targetSlot.officeId,
+        },
+      });
+      await refetchAppointments();
+      showAlert("Cita movida correctamente", "success");
+    } catch (error) {
+      showAlert(error instanceof Error ? error.message : "No se pudo mover la cita", "error");
+    }
+  };
 
   const updateFormField = <Key extends keyof AppointmentFormState>(
     field: Key,
@@ -332,7 +457,7 @@ export const AppointmentScheduler = () => {
     }
 
     if (appointment) {
-      return { status: "appointment", label: getAppointmentPatientName(appointment) };
+      return { status: "appointment", label: getAppointmentPatientName(appointment), appointmentId: appointment.id };
     }
 
     if (!isSlotInsideWorkSchedule(slot, workSchedule)) {
@@ -897,93 +1022,133 @@ export const AppointmentScheduler = () => {
               </div>
             ) : (
               <div className="custom-scroll flex-1 overflow-x-auto p-4">
-                <div className="min-w-[900px] text-xs">
-                  {monthWeeks.map((week, weekIndex) => (
-                    <div
-                      className="mb-3 grid grid-cols-[74px_repeat(7,minmax(105px,1fr))] last:mb-0"
-                      key={`${visibleMonth.getFullYear()}-${visibleMonth.getMonth()}-${weekIndex}`}
-                    >
-                      <div className="border border-slate-200 bg-senses-primary p-1 text-center font-medium text-white" />
-                      {week.map((day, dayIndex) => {
-                        const workSchedule = day
-                          ? getWorkScheduleForWeekday(workSchedules, day.weekdayIndex)
-                          : undefined;
+                <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+                  <div className="min-w-[900px] text-xs">
+                    {monthWeeks.map((week, weekIndex) => {
+                      const weekKey = getWeekKey(weekIndex);
+                      const isExpandedWeek = expandedWeekKeys.includes(weekKey);
+                      const weekSlots = isExpandedWeek
+                        ? [...shiftSlots.morning, ...shiftSlots.afternoon]
+                        : shiftSlots[shift];
 
-                        return (
-                          <div
-                            className={`border border-slate-200 p-1 text-center font-medium ${
-                              day && workSchedule
-                                ? "bg-senses-primary text-white"
-                                : "bg-slate-100 text-slate-500"
-                            }`}
-                            key={day?.key ?? `empty-header-${weekIndex}-${dayIndex}`}
-                          >
-                            <div>{day ? `${weekDayNames[day.weekdayIndex]} ${day.day}` : weekDayNames[dayIndex]}</div>
-                            {day && (
-                              <div
-                                className={`mt-1 rounded-sm px-1 py-0.5 text-[0.6rem] font-medium ${
-                                  workSchedule ? "bg-white/15 text-white" : "bg-white text-slate-500"
-                                }`}
-                              >
-                                {workSchedule
-                                  ? `${workSchedule.officeName} · ${formatSlotRange(
-                                      workSchedule.startHour,
-                                      workSchedule.endHour
-                                    )}`
-                                  : "Sin atención"}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-
-                      <div className="flex flex-col">
-                        {visibleSlots.map((slot) => (
-                          <div
-                            className="flex h-8 items-center justify-center border-b border-r border-slate-200 bg-slate-50 text-[0.65rem] font-medium text-slate-500"
-                            key={slot.startHour}
-                          >
-                            {slot.label}
-                          </div>
-                        ))}
-                      </div>
-
-                      {week.map((day, dayIndex) => (
+                      return (
                         <div
-                          className="flex flex-col border-r border-slate-200"
-                          key={day?.key ?? `empty-column-${weekIndex}-${dayIndex}`}
+                          className="mb-3 grid grid-cols-[74px_repeat(7,minmax(105px,1fr))] last:mb-0"
+                          key={weekKey}
                         >
-                          {visibleSlots.map((slot) => {
-                            if (!day) {
-                              return <CalendarSlot key={slot.startHour} state={{ status: "empty" }} />;
-                            }
+                          <button
+                            className="flex items-center justify-center border border-slate-200 bg-senses-primary px-1 text-[0.65rem] font-semibold text-white transition hover:bg-senses-primary/90 focus:outline-none focus:ring-2 focus:ring-senses-secondary"
+                            onClick={() => toggleExpandedWeek(weekKey)}
+                            type="button"
+                          >
+                            {isExpandedWeek ? "Reducir" : "Ampliar"}
+                          </button>
+                          {week.map((day, dayIndex) => {
+                            const workSchedule = day
+                              ? getWorkScheduleForWeekday(workSchedules, day.weekdayIndex)
+                              : undefined;
 
-                            const state = getSlotState(day, slot);
-                            const appointment = getAppointmentForSlot(day.key, slot.startHour);
                             return (
-                              <CalendarSlot
-                                ariaLabel={
-                                  appointment
-                                    ? `Ver cita de ${getAppointmentPatientName(appointment)}`
-                                    : `Crear cita el ${getLongDateLabel(day.date)} de ${slot.label}`
-                                }
-                                key={slot.startHour}
-                                onClick={
-                                  appointment
-                                    ? () => openAppointmentDetail(appointment)
-                                    : state.status === "available"
-                                      ? () => openCreateDialog(day, slot)
-                                      : undefined
-                                }
-                                state={state}
-                              />
+                              <div
+                                className={`border border-slate-200 p-1 text-center font-medium ${
+                                  day && workSchedule
+                                    ? "bg-senses-primary text-white"
+                                    : "bg-slate-100 text-slate-500"
+                                }`}
+                                key={day?.key ?? `empty-header-${weekIndex}-${dayIndex}`}
+                              >
+                                <div>{day ? `${weekDayNames[day.weekdayIndex]} ${day.day}` : weekDayNames[dayIndex]}</div>
+                                {day && (
+                                  <div
+                                    className={`mt-1 rounded-sm px-1 py-0.5 text-[0.6rem] font-medium ${
+                                      workSchedule ? "bg-white/15 text-white" : "bg-white text-slate-500"
+                                    }`}
+                                  >
+                                    {workSchedule
+                                      ? `${workSchedule.officeName} · ${formatSlotRange(
+                                          workSchedule.startHour,
+                                          workSchedule.endHour
+                                        )}`
+                                      : "Sin atención"}
+                                  </div>
+                                )}
+                              </div>
                             );
                           })}
+
+                          <div className="flex flex-col">
+                            {weekSlots.map((slot) => (
+                              <div
+                                className="flex h-8 items-center justify-center border-b border-r border-slate-200 bg-slate-50 text-[0.65rem] font-medium text-slate-500"
+                                key={slot.startHour}
+                              >
+                                {slot.label}
+                              </div>
+                            ))}
+                          </div>
+
+                          {week.map((day, dayIndex) => (
+                            <div
+                              className="flex flex-col border-r border-slate-200"
+                              key={day?.key ?? `empty-column-${weekIndex}-${dayIndex}`}
+                            >
+                              {weekSlots.map((slot) => {
+                                if (!day) {
+                                  return (
+                                    <DroppableCalendarSlot
+                                      disabled
+                                      droppableId={`empty-${weekIndex}-${dayIndex}-${slot.startHour}`}
+                                      key={slot.startHour}
+                                      state={{ status: "empty" }}
+                                    />
+                                  );
+                                }
+
+                                const state = getSlotState(day, slot);
+                                const appointment = getAppointmentForSlot(day.key, slot.startHour);
+                                const workSchedule = getWorkScheduleForWeekday(workSchedules, day.weekdayIndex);
+                                const targetSlot =
+                                  workSchedule && state.status === "available"
+                                    ? {
+                                        date: day.date,
+                                        dateKey: day.key,
+                                        startHour: slot.startHour,
+                                        endHour: slot.endHour,
+                                        label: slot.label,
+                                        officeId: workSchedule.officeId,
+                                        officeName: workSchedule.officeName,
+                                      }
+                                    : undefined;
+
+                                return (
+                                  <DroppableCalendarSlot
+                                    ariaLabel={
+                                      appointment
+                                        ? `Ver cita de ${getAppointmentPatientName(appointment)}`
+                                        : `Crear cita el ${getLongDateLabel(day.date)} de ${slot.label}`
+                                    }
+                                    disabled={!targetSlot}
+                                    droppableId={`slot-${day.key}-${slot.startHour}`}
+                                    key={slot.startHour}
+                                    onClick={
+                                      appointment
+                                        ? () => openAppointmentDetail(appointment)
+                                        : state.status === "available"
+                                          ? () => openCreateDialog(day, slot)
+                                          : undefined
+                                    }
+                                    slotData={targetSlot}
+                                    state={state}
+                                  />
+                                );
+                              })}
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
+                      );
+                    })}
+                  </div>
+                </DndContext>
               </div>
             )}
           </main>

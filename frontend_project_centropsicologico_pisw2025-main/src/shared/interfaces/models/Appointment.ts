@@ -39,5 +39,13 @@ export interface CreateAppointmentPayload {
   type?: AppointmentType | string;
 }
 
-// check if is necessary add more fields
-export type UpdateAppointmentPayload = CreateAppointmentPayload;
+export interface UpdateAppointmentPayload {
+  patientId?: string;
+  psychologistId?: string;
+  officeId?: string;
+  startDate?: string;
+  endDate?: string;
+  reason?: string;
+  status?: AppointmentStatus;
+  type?: AppointmentType | string;
+}
