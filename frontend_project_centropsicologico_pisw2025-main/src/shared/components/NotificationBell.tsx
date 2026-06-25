@@ -114,8 +114,7 @@ export const NotificationBell = () => {
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 markAllAsRead();
               }}
               className="text-xs text-senses-secondary hover:text-senses-primary hover:bg-senses-secondary/10 h-8 px-2"
@@ -136,8 +135,8 @@ export const NotificationBell = () => {
             notifications.map((notif) => (
               <DropdownMenuItem
                 key={notif.id}
-                onClick={(e) => {
-                  e.preventDefault(); // Evitar cerrar el menu si queremos
+                onSelect={(e) => {
+                  e.preventDefault(); // Evitar cerrar el menú al hacer clic en Radix UI
                   if (!notif.isRead) markAsRead(notif.id);
                 }}
                 className={`flex flex-col items-start px-4 py-3 cursor-pointer transition-colors focus:bg-senses-secondary/5 ${

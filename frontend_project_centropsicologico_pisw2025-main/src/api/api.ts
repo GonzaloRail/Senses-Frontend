@@ -5,8 +5,8 @@ import { queryClient } from "@/lib/queryClient";
 
 const api = axios.create({
   // baseURL: import.meta.env.VITE_API_URL,
-  baseURL: "http://localhost:5000",
-  // baseURL: "https://senses-backend-n8x5.onrender.com",
+  // baseURL: "http://localhost:5000",
+  baseURL: "https://senses-backend-n8x5.onrender.com",
   withCredentials: true, // para enviar cookies
 });
 
