@@ -4,7 +4,7 @@ import type { User } from "./User";
 
 export type AppointmentStatus = "PENDING" | "CANCELED" | "DONE" | "IN_PROGRESS";
 
-type AppointmentType = "PARTICULAR" | "SOCIAL";
+export type AppointmentType = "PARTICULAR" | "SOCIAL";
 
 export interface Appointment {
   id: string;
@@ -36,7 +36,16 @@ export interface CreateAppointmentPayload {
   startDate: string;
   endDate: string;
   reason: string;
+  type?: AppointmentType | string;
 }
 
-// check if is necessary add more fields
-export type UpdateAppointmentPayload = CreateAppointmentPayload;
+export interface UpdateAppointmentPayload {
+  patientId?: string;
+  psychologistId?: string;
+  officeId?: string;
+  startDate?: string;
+  endDate?: string;
+  reason?: string;
+  status?: AppointmentStatus;
+  type?: AppointmentType | string;
+}
