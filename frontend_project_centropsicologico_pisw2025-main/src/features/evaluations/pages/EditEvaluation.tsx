@@ -234,7 +234,7 @@ export const EditEvaluation = () => {
               name: test.name,
               description: test.description || "",
               filename: test.filename,
-              filePath: filePath || null,
+              filePath: filePath || "",
               evaluationId: evaluationData.id,
               createdById: user?.id || "",
               testGroupId: (test as any).testGroupId || undefined,

@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { ImagePlus, Send, Globe, CalendarClock, Users, CheckSquare, Square, Loader2, Filter } from "lucide-react";
+import { Send, Globe, CalendarClock, Users, CheckSquare, Square, Loader2, Filter } from "lucide-react";
 
 // Diccionario para traducir los roles del backend a español
 const ROLE_TRANSLATIONS: Record<string, string> = {
@@ -73,7 +73,7 @@ export const AnnouncementManagementPage = () => {
       return;
     }
 
-    const targetUsers = realUsers.filter(u => rolesToTarget.includes(u.rawRole));
+    const targetUsers = realUsers.filter((u: any) => rolesToTarget.includes(u.rawRole));
     
     if (targetUsers.length === 0) {
       toast.error("No hay usuarios en los roles seleccionados");
@@ -84,7 +84,7 @@ export const AnnouncementManagementPage = () => {
     try {
       // Disparar las notificaciones en vivo
       await Promise.all(
-        targetUsers.map(user => 
+        targetUsers.map((user: any) => 
           api.post("/api/v1/notifications", {
             title: globalTitle,
             message: globalMessage,

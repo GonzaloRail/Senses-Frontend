@@ -9,7 +9,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/store/auth/auth.store";
-import { Megaphone } from "lucide-react";
 
 export const GlobalAnnouncementModal = () => {
   const [isOpen, setIsOpen] = useState(false);
