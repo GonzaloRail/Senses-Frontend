@@ -51,6 +51,7 @@ import { ResetPassword } from "@/features/auth/pages/ResetPassword";
 import { MySchedule } from "@/features/schedules/pages/MySchedule";
 import { MyAppointmentsList } from "@/features/my-appointments/pages/MyAppointmentsList";
 import { MyAppointmentInformation } from "@/features/my-appointments/pages/MyAppointmentInformation";
+import { IngresosList, CreateIngreso } from "@/features/ingresos";
 
 // import { CreateLocation } from "@/features/locations/pages/CreateLocation";
 
@@ -112,9 +113,11 @@ export const AppRouter = () => {
                     <Navigate to="/dashboard" replace />
                   ) : roleNameSelected === "ADMISSION" ? (
                     <Navigate to="/patients" replace />
-                  ) : roleNameSelected === "PSYCHOLOGIST" ||
+                  ) :                   roleNameSelected === "PSYCHOLOGIST" ||
                     roleNameSelected === "INTERNAL" ? (
                     <Navigate to="/my-patients" replace />
+                  ) : roleNameSelected === "AUDITOR" ? (
+                    <Navigate to="/ingresos" replace />
                   ) : (
                     <Navigate to="/not-found" replace />
                   )
@@ -163,6 +166,8 @@ export const AppRouter = () => {
                 <Route path="inventory/" element={<ItemsList />} />
                 <Route path="inventory/:id" element={<ItemInformation />} />
                 <Route path="inventory/create" element={<CreateItem />} />
+                <Route path="ingresos/" element={<IngresosList />} />
+                <Route path="ingresos/create" element={<CreateIngreso />} />
               </Route>
 
               {/* Rutas solo para admisión */}
@@ -237,6 +242,12 @@ export const AppRouter = () => {
                 />
 
                 <Route path="/other-roles" element={<NotFound />} />
+              </Route>
+
+              {/* Rutas solo para auditor */}
+              <Route element={<ProtectedRoute allowedRoles={["AUDITOR"]} />}>
+                <Route path="ingresos/" element={<IngresosList />} />
+                <Route path="ingresos/create" element={<CreateIngreso />} />
               </Route>
             </>
           </Route>

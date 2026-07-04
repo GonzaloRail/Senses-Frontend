@@ -17,3 +17,4 @@ export type * from "./Test";
 export type * from "./User";
 export type * from "./UserRole";
 export type * from "./WorkSchedule";
+export type * from "./IncomeReceipt";
