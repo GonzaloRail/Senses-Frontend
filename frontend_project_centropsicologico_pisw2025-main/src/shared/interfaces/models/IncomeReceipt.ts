@@ -53,6 +53,9 @@ export interface ReviewChangeRequestPayload {
     totalAmount: number;
     paymentMethod: string;
     allocations: CreateIncomeAllocation[];
+    clientName?: string;
+    clientDocument?: string;
+    clientPhone?: string;
   };
 }
 

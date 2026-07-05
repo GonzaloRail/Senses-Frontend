@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { dateDisplay, money, pad } from "../utils/ingresosUtils";
 import { ChangeRequestModal } from "./ChangeRequestModal";
+import { EditIncomeModal } from "./EditIncomeModal";
 import type { IncomeReceipt } from "@/shared/interfaces/models/IncomeReceipt";
 
 interface Props {
@@ -29,6 +30,7 @@ const statusBadge = (status: IncomeReceipt["status"]) => {
 
 export const IngresosTable = ({ receipts, onView, onShowReceipt }: Props) => {
   const [changeRequestTarget, setChangeRequestTarget] = useState<{ id: string; type: "CANCELLATION" | "CORRECTION" | "REFUND" } | null>(null);
+  const [editTarget, setEditTarget] = useState<IncomeReceipt | null>(null);
 
   if (!receipts.length) {
     return (
@@ -89,6 +91,11 @@ export const IngresosTable = ({ receipts, onView, onShowReceipt }: Props) => {
                       Boleta
                     </Button>
                     {r.status === "Vigente" && (
+                      <Button variant="outline" size="sm" onClick={() => setEditTarget(r)}>
+                        Editar
+                      </Button>
+                    )}
+                    {r.status === "Vigente" && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="destructive" size="sm">Acciones</Button>
@@ -114,12 +121,22 @@ export const IngresosTable = ({ receipts, onView, onShowReceipt }: Props) => {
         </Table>
       </div>
 
-      <ChangeRequestModal
-        incomeId={changeRequestTarget?.id ?? null}
-        type={changeRequestTarget?.type ?? null}
-        open={!!changeRequestTarget}
-        onClose={() => setChangeRequestTarget(null)}
-      />
+      {changeRequestTarget && (
+        <ChangeRequestModal
+          incomeId={changeRequestTarget.id}
+          type={changeRequestTarget.type}
+          open={true}
+          onClose={() => setChangeRequestTarget(null)}
+        />
+      )}
+
+      {editTarget && (
+        <EditIncomeModal
+          receipt={editTarget}
+          open={true}
+          onClose={() => setEditTarget(null)}
+        />
+      )}
     </>
   );
 };

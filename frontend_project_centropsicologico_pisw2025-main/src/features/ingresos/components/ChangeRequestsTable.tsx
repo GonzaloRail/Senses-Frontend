@@ -74,12 +74,14 @@ export const ChangeRequestsTable = ({ requests, loading, isAdmin, onRefresh }: P
         </Table>
       </div>
 
-      <ReviewChangeRequestModal
-        request={reviewTarget}
-        open={!!reviewTarget}
-        onClose={() => setReviewTarget(null)}
-        onReviewed={onRefresh}
-      />
+      {reviewTarget && (
+        <ReviewChangeRequestModal
+          request={reviewTarget}
+          open={true}
+          onClose={() => setReviewTarget(null)}
+          onReviewed={onRefresh}
+        />
+      )}
     </>
   );
 };

@@ -104,6 +104,11 @@ export const ingresosApi = {
     return mapBackendIncome(response.data);
   },
 
+  async getIncomeRaw(id: string) {
+    const { data } = await api.get(`/api/v1/accounting/incomes/${id}`);
+    return data;
+  },
+
   async getFiltered(filters: IncomeReceiptFilters): Promise<IncomeReceipt[]> {
     const params: Record<string, string | number> = { page: 1, take: 100 };
 

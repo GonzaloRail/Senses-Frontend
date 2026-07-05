@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -28,7 +29,7 @@ export const ChangeRequestModal = ({ incomeId, type, open, onClose }: Props) => 
 
   const mutation = useCreateChangeRequest();
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!incomeId || !type || !reason.trim()) return;
 
     const payload: any = { type, reason: reason.trim() };
@@ -38,22 +39,17 @@ export const ChangeRequestModal = ({ incomeId, type, open, onClose }: Props) => 
       payload.requestedAmount = Number(amount);
     }
 
-    mutation.mutate(
-      { incomeId, payload },
-      {
-        onSuccess: () => {
-          toast.success(`Solicitud de ${CHANGE_TYPE_LABELS[type].toLowerCase()} enviada correctamente`);
-          onClose();
-          setReason("");
-          setAllocationId("");
-          setAmount("");
-        },
-        onError: (error: any) => {
-          const msg = error?.response?.data?.message || error?.message || "Error al crear la solicitud";
-          toast.error(msg);
-        },
-      }
-    );
+    try {
+      await mutation.mutateAsync({ incomeId, payload });
+      toast.success(`Solicitud de ${CHANGE_TYPE_LABELS[type].toLowerCase()} enviada correctamente`);
+      onClose();
+      setReason("");
+      setAllocationId("");
+      setAmount("");
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || error?.message || "Error al crear la solicitud";
+      toast.error(msg);
+    }
   };
 
   return (
@@ -63,6 +59,9 @@ export const ChangeRequestModal = ({ incomeId, type, open, onClose }: Props) => 
           <DialogTitle>
             {type ? CHANGE_TYPE_LABELS[type] : "Solicitar cambio"}
           </DialogTitle>
+          <DialogDescription>
+            {type ? `Solicitar ${CHANGE_TYPE_LABELS[type].toLowerCase()} para el comprobante.` : "Complete los datos de la solicitud."}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
