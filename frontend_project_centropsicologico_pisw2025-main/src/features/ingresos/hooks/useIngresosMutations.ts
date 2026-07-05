@@ -1,34 +1,54 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ingresosApi } from "../api/ingresosApi";
 import { INGRESOS_QUERY_KEY } from "./useIngresosQueries";
-import type { CreateIncomeReceiptInput } from "@/shared/interfaces/models/IncomeReceipt";
+import type {
+  CreateIncomePayload,
+  CreateChangeRequestPayload,
+  ReviewChangeRequestPayload,
+  ConfigureBillingPayload,
+} from "@/shared/interfaces/models/IncomeReceipt";
 
 export const useCreateIngreso = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreateIncomeReceiptInput) => ingresosApi.create(input),
+    mutationFn: (input: CreateIncomePayload) => ingresosApi.create(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: INGRESOS_QUERY_KEY });
     },
   });
 };
 
-export const useAnnulIngreso = () => {
+export const useCreateChangeRequest = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => ingresosApi.annul(id),
+    mutationFn: ({ incomeId, payload }: { incomeId: string; payload: CreateChangeRequestPayload }) =>
+      ingresosApi.createChangeRequest(incomeId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: INGRESOS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["change-requests"] });
     },
   });
 };
 
-export const useDeleteIngreso = () => {
+export const useReviewChangeRequest = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => ingresosApi.remove(id),
+    mutationFn: ({ requestId, payload }: { requestId: string; payload: ReviewChangeRequestPayload }) =>
+      ingresosApi.reviewChangeRequest(requestId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: INGRESOS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ["change-requests"] });
+    },
+  });
+};
+
+export const useConfigureBilling = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ appointmentId, payload }: { appointmentId: string; payload: ConfigureBillingPayload }) =>
+      ingresosApi.configureAppointmentBilling(appointmentId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
     },
   });
 };

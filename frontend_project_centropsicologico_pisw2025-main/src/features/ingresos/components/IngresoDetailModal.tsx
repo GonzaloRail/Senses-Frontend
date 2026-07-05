@@ -1,13 +1,14 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { money, dateDisplay, pad } from "../utils/ingresosUtils";
+import { dateDisplay, money, pad } from "../utils/ingresosUtils";
 import type { IncomeReceipt } from "@/shared/interfaces/models/IncomeReceipt";
 
 interface Props {
   receipt: IncomeReceipt | null;
   open: boolean;
   onClose: () => void;
+  onShowReceipt: (receipt: IncomeReceipt | null) => void;
 }
 
 const statusBadge = (status: IncomeReceipt["status"]) => {
@@ -19,7 +20,7 @@ const statusBadge = (status: IncomeReceipt["status"]) => {
   return <Badge className={colors[status] || ""} variant="outline">{status}</Badge>;
 };
 
-export const IngresoDetailModal = ({ receipt, open, onClose }: Props) => {
+export const IngresoDetailModal = ({ receipt, open, onClose, onShowReceipt }: Props) => {
   if (!receipt) return null;
 
   return (
@@ -100,6 +101,12 @@ export const IngresoDetailModal = ({ receipt, open, onClose }: Props) => {
         </div>
 
         <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onShowReceipt(receipt)}
+          >
+            Ver recibo completo
+          </Button>
           <Button variant="outline" onClick={onClose}>Cerrar</Button>
         </DialogFooter>
       </DialogContent>

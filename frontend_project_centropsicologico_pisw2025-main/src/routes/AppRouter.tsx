@@ -51,7 +51,7 @@ import { ResetPassword } from "@/features/auth/pages/ResetPassword";
 import { MySchedule } from "@/features/schedules/pages/MySchedule";
 import { MyAppointmentsList } from "@/features/my-appointments/pages/MyAppointmentsList";
 import { MyAppointmentInformation } from "@/features/my-appointments/pages/MyAppointmentInformation";
-import { IngresosList, CreateIngreso } from "@/features/ingresos";
+import { IngresosList, CreateIngreso, IncomeReportByPsychologist } from "@/features/ingresos";
 
 // import { CreateLocation } from "@/features/locations/pages/CreateLocation";
 
@@ -166,8 +166,6 @@ export const AppRouter = () => {
                 <Route path="inventory/" element={<ItemsList />} />
                 <Route path="inventory/:id" element={<ItemInformation />} />
                 <Route path="inventory/create" element={<CreateItem />} />
-                <Route path="ingresos/" element={<IngresosList />} />
-                <Route path="ingresos/create" element={<CreateIngreso />} />
               </Route>
 
               {/* Rutas solo para admisión */}
@@ -220,6 +218,17 @@ export const AppRouter = () => {
                 />
               </Route>
 
+              {/* Rutas para admin, admision y auditor */}
+              <Route
+                element={
+                  <ProtectedRoute allowedRoles={["ADMIN", "ADMISSION", "AUDITOR"]} />
+                }
+              >
+                <Route path="ingresos/" element={<IngresosList />} />
+                <Route path="ingresos/create" element={<CreateIngreso />} />
+                <Route path="ingresos/report-by-psychologist" element={<IncomeReportByPsychologist />} />
+              </Route>
+
               {/* Para cualquier otro rol autenticado, mostrar NotFound */}
               <Route
                 element={
@@ -246,8 +255,6 @@ export const AppRouter = () => {
 
               {/* Rutas solo para auditor */}
               <Route element={<ProtectedRoute allowedRoles={["AUDITOR"]} />}>
-                <Route path="ingresos/" element={<IngresosList />} />
-                <Route path="ingresos/create" element={<CreateIngreso />} />
               </Route>
             </>
           </Route>

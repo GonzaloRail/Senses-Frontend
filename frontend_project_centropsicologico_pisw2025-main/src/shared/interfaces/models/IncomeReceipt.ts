@@ -20,7 +20,78 @@ export interface IncomeReceipt {
   createdAt: string;
 }
 
-export type CreateIncomeReceiptInput = Omit<IncomeReceipt, "id" | "status" | "createdBy" | "createdAt">;
+export interface CreateIncomeAllocation {
+  appointmentId: string;
+  amount: number;
+}
+
+export interface CreateIncomePayload {
+  patientId: string;
+  totalAmount: number;
+  payment: string;
+  paidAt: string;
+  clientName: string;
+  clientDocument: string;
+  clientPhone: string;
+  allocations: CreateIncomeAllocation[];
+  attentionType?: string;
+  serviceDescription?: string;
+  psychologistName?: string;
+}
+
+export interface CreateChangeRequestPayload {
+  type: "CANCELLATION" | "CORRECTION" | "REFUND";
+  reason: string;
+  allocationId?: string;
+  requestedAmount?: number;
+}
+
+export interface ReviewChangeRequestPayload {
+  status: "APPROVED" | "REJECTED";
+  reviewComment?: string;
+  replacement?: {
+    totalAmount: number;
+    paymentMethod: string;
+    allocations: CreateIncomeAllocation[];
+  };
+}
+
+export interface ChangeRequest {
+  id: string;
+  type: "CANCELLATION" | "CORRECTION" | "REFUND";
+  reason: string;
+  requestedAmount: number | null;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  incomeId: string;
+  allocationId: string | null;
+  receiptCode: string;
+  requestedBy: { firstName: string; lastName: string } | null;
+  reviewedBy: { firstName: string; lastName: string } | null;
+  createdAt: string;
+  reviewedAt: string | null;
+  reviewComment: string | null;
+  replacementIncomeId: string | null;
+}
+
+export interface AccountingService {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  defaultPrice: number | null;
+  isActive: boolean;
+}
+
+export interface PsychologistOption {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface ConfigureBillingPayload {
+  serviceId: string;
+  agreedAmount: number;
+}
 
 export type IncomeReceiptFilters = {
   dateFrom: string;

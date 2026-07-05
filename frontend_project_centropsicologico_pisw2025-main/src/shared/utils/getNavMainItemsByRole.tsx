@@ -79,6 +79,11 @@ export const getNavMainItemsByRole = (role: string) => {
           icon: FaUserCog,
           url: "/employee-leaves",
         },
+        {
+          title: "Registro de ingresos",
+          icon: TbReceipt,
+          url: "/ingresos",
+        },
       ];
     case "PSYCHOLOGIST":
       return [

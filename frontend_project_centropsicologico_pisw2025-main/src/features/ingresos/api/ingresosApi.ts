@@ -1,150 +1,210 @@
-import type { IncomeReceipt, CreateIncomeReceiptInput, IncomeReceiptFilters } from "@/shared/interfaces/models/IncomeReceipt";
+import api from "@/api/api";
+import type {
+  IncomeReceipt,
+  IncomeReceiptFilters,
+  CreateIncomePayload,
+  CreateChangeRequestPayload,
+  ReviewChangeRequestPayload,
+  ChangeRequest,
+  AccountingService,
+  ConfigureBillingPayload,
+} from "@/shared/interfaces/models/IncomeReceipt";
+import {
+  STATUS_TO_SPANISH,
+  BACKEND_TO_PAYMENT_METHOD,
+  PAYMENT_METHOD_TO_BACKEND,
+} from "../utils/ingresosUtils";
 
-const STORAGE_KEY = "senses_ingresos_mock";
+const ATTENTION_MAP: Record<string, string> = {
+  PARTICULAR: "Particular",
+  SOCIAL: "Social",
+  AGREEMENT: "Convenio",
+};
 
-function uid() {
-  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+function mapBackendIncome(item: any): IncomeReceipt {
+  const firstAllocation = item.allocations?.[0];
+  return {
+    id: item.id,
+    series: item.series,
+    number: item.receiptNumber,
+    date: item.paidAt?.slice(0, 10) ?? "",
+    client: item.clientName ?? "",
+    clientDni: item.clientDocument ?? "",
+    patient: item.patientNameSnapshot ?? "",
+    patientDoc: item.patientDocumentSnapshot ?? "",
+    phone: item.clientPhone ?? "",
+    attention: firstAllocation ? (ATTENTION_MAP[firstAllocation.appointmentTypeSnapshot] ?? "Particular") : "Particular",
+    service: firstAllocation?.serviceNameSnapshot ?? "",
+    psychologist: firstAllocation?.psychologistNameSnapshot ?? "",
+    payment: BACKEND_TO_PAYMENT_METHOD[item.paymentMethod] ?? item.paymentMethod,
+    subtotal: Number(item.subtotal),
+    igv: Number(item.taxAmount),
+    total: Number(item.totalAmount),
+    status: (STATUS_TO_SPANISH[item.status] ?? "Vigente") as IncomeReceipt["status"],
+    createdBy: item.createdBy ? `${item.createdBy.firstName ?? ""} ${item.createdBy.lastName ?? ""}`.trim() : "",
+    createdAt: item.createdAt ?? "",
+  };
 }
 
-function pad(n: number) {
-  return String(n).padStart(6, "0");
+function mapDailyRegisterEntry(item: any): IncomeReceipt {
+  const [series = "", numStr = "0"] = (item.receiptCode ?? "").split("-");
+  const firstPsych = item.psychologists?.[0];
+  return {
+    id: item.id,
+    series,
+    number: parseInt(numStr, 10) || 0,
+    date: item.paidAt?.slice(0, 10) ?? "",
+    client: item.clientName ?? "",
+    clientDni: item.clientDocument ?? "",
+    patient: item.patientName ?? "",
+    patientDoc: item.patientDocument ?? "",
+    phone: item.clientPhone ?? "",
+    attention: "Particular",
+    service: "",
+    psychologist: firstPsych?.name ?? "",
+    payment: BACKEND_TO_PAYMENT_METHOD[item.paymentMethod] ?? item.paymentMethod,
+    subtotal: Number(item.subtotal),
+    igv: Number(item.taxAmount),
+    total: Number(item.grossAmount),
+    status: (STATUS_TO_SPANISH[item.status] ?? "Vigente") as IncomeReceipt["status"],
+    createdBy: "",
+    createdAt: item.paidAt ?? "",
+  };
 }
 
-function round2(n: number) {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
-}
-
-function seedData(): IncomeReceipt[] {
-  return [
-    {
-      id: uid(), series: "2026", number: 1, date: "2026-06-03",
-      client: "Cliente Demo A", clientDni: "70000001", patient: "Paciente Demo A", patientDoc: "HCL-001",
-      phone: "900111222", attention: "Particular", service: "Consulta", psychologist: "Psicólogo Demo 1",
-      payment: "Yape", subtotal: 127.12, igv: 22.88, total: 150,
-      status: "Vigente", createdBy: "Admissión User", createdAt: "2026-06-03T09:00:00",
-    },
-    {
-      id: uid(), series: "2026", number: 2, date: "2026-06-05",
-      client: "Cliente Demo B", clientDni: "70000002", patient: "Paciente Demo B", patientDoc: "HCL-002",
-      phone: "900222333", attention: "Convenio", service: "Evaluación psicológica", psychologist: "Psicóloga Demo 2",
-      payment: "Transferencia", subtotal: 237.29, igv: 42.71, total: 280,
-      status: "Vigente", createdBy: "Admissión User", createdAt: "2026-06-05T09:00:00",
-    },
-    {
-      id: uid(), series: "2026", number: 3, date: "2026-06-12",
-      client: "Cliente Demo C", clientDni: "70000003", patient: "Paciente Demo C", patientDoc: "HCL-003",
-      phone: "900333444", attention: "Social", service: "Terapia individual", psychologist: "Interno Demo",
-      payment: "Efectivo", subtotal: 76.27, igv: 13.73, total: 90,
-      status: "Vigente", createdBy: "Admissión User", createdAt: "2026-06-12T09:00:00",
-    },
-    {
-      id: uid(), series: "2026", number: 4, date: "2026-06-17",
-      client: "Cliente Demo D", clientDni: "70000004", patient: "Paciente Demo D", patientDoc: "HCL-004",
-      phone: "900444555", attention: "Particular", service: "Neuropsicología", psychologist: "Psicólogo Demo 1",
-      payment: "Tarjeta", subtotal: 271.19, igv: 48.81, total: 320,
-      status: "Vigente", createdBy: "Admissión User", createdAt: "2026-06-17T09:00:00",
-    },
-    {
-      id: uid(), series: "2026", number: 5, date: "2026-06-21",
-      client: "Cliente Demo E", clientDni: "70000005", patient: "Paciente Demo E", patientDoc: "HCL-005",
-      phone: "900555666", attention: "Particular", service: "Terapia individual", psychologist: "Psicóloga Demo 2",
-      payment: "Plin", subtotal: 110.17, igv: 19.83, total: 130,
-      status: "Vigente", createdBy: "Admissión User", createdAt: "2026-06-21T09:00:00",
-    },
-  ];
-}
-
-function loadData(): IncomeReceipt[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch { }
-  const seeded = seedData();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
-  return seeded;
-}
-
-function saveData(data: IncomeReceipt[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+function mapBackendChangeRequest(item: any): ChangeRequest {
+  return {
+    id: item.id,
+    type: item.type,
+    reason: item.reason,
+    requestedAmount: item.requestedAmount ? Number(item.requestedAmount) : null,
+    status: item.status,
+    incomeId: item.incomeId,
+    allocationId: item.allocationId,
+    receiptCode: item.receiptCode ?? `${item.income?.series ?? ""}-${String(item.income?.receiptNumber ?? "").padStart(6, "0")}`,
+    requestedBy: item.requestedBy ? { firstName: item.requestedBy.firstName, lastName: item.requestedBy.lastName } : null,
+    reviewedBy: item.reviewedBy ? { firstName: item.reviewedBy.firstName, lastName: item.reviewedBy.lastName } : null,
+    createdAt: item.createdAt,
+    reviewedAt: item.reviewedAt ?? null,
+    reviewComment: item.reviewComment ?? null,
+    replacementIncomeId: item.replacementIncomeId ?? null,
+  };
 }
 
 export const ingresosApi = {
   async getAll(): Promise<IncomeReceipt[]> {
-    await delay(150);
-    return loadData();
+    const response = await api.get("/api/v1/accounting/incomes", {
+      params: { page: 1, take: 100 },
+    });
+    return (response.data.items ?? []).map(mapBackendIncome);
   },
 
   async getById(id: string): Promise<IncomeReceipt | undefined> {
-    await delay(100);
-    return loadData().find((r) => r.id === id);
+    const response = await api.get(`/api/v1/accounting/incomes/${id}`);
+    return mapBackendIncome(response.data);
   },
 
   async getFiltered(filters: IncomeReceiptFilters): Promise<IncomeReceipt[]> {
-    await delay(150);
-    const all = loadData();
-    const from = filters.dateFrom || "";
-    const to = filters.dateTo || "";
-    const patient = filters.patient.toLowerCase();
-    const client = filters.client.toLowerCase();
-    const psych = filters.psychologist;
-    const pay = filters.payment;
-    const number = filters.number.replace(/^0+/, "");
+    const params: Record<string, string | number> = { page: 1, take: 100 };
 
-    return all
-      .filter((r) => {
-        if (from && r.date < from) return false;
-        if (to && r.date > to) return false;
-        if (patient && !r.patient.toLowerCase().includes(patient)) return false;
-        if (client && !r.client.toLowerCase().includes(client)) return false;
-        if (psych && r.psychologist !== psych) return false;
-        if (pay && r.payment !== pay) return false;
-        if (number && String(r.number) !== number) return false;
-        return true;
-      })
-      .sort((a, b) => b.date.localeCompare(a.date) || b.number - a.number);
-  },
-
-  async create(input: CreateIncomeReceiptInput): Promise<IncomeReceipt> {
-    await delay(200);
-    const all = loadData();
-    const nextNumber = all.length > 0 ? Math.max(...all.map((r) => r.number)) + 1 : 1;
-    const subtotal = round2(input.total / 1.18);
-    const igv = round2(input.total - subtotal);
-    const receipt: IncomeReceipt = {
-      ...input,
-      id: uid(),
-      subtotal,
-      igv,
-      status: "Vigente",
-      createdBy: "Usuario Actual",
-      createdAt: new Date().toISOString(),
-    };
-    all.push(receipt);
-    saveData(all);
-    return receipt;
-  },
-
-  async annul(id: string): Promise<void> {
-    await delay(150);
-    const all = loadData();
-    const idx = all.findIndex((r) => r.id === id);
-    if (idx !== -1) {
-      all[idx] = { ...all[idx], status: "Anulado" };
-      saveData(all);
+    if (filters.dateFrom) params.from = new Date(filters.dateFrom).toISOString();
+    if (filters.dateTo) {
+      const to = new Date(filters.dateTo);
+      to.setDate(to.getDate() + 1);
+      params.to = to.toISOString();
     }
+
+    const searchTerms: string[] = [];
+    if (filters.patient) searchTerms.push(filters.patient);
+    if (filters.client) searchTerms.push(filters.client);
+    if (searchTerms.length > 0) params.search = searchTerms.join(" ");
+
+    if (filters.payment) {
+      const backendKey = PAYMENT_METHOD_TO_BACKEND[filters.payment] ?? filters.payment;
+      params.paymentMethod = backendKey;
+    }
+
+    if (filters.psychologist) {
+      params.psychologistId = filters.psychologist;
+    }
+
+    if (filters.number) params.receiptNumber = parseInt(filters.number, 10);
+
+    const response = await api.get("/api/v1/accounting/incomes", { params });
+    return (response.data.items ?? []).map(mapBackendIncome);
   },
 
-  async remove(id: string): Promise<void> {
-    await delay(100);
-    const all = loadData().filter((r) => r.id !== id);
-    saveData(all);
+  async create(input: CreateIncomePayload): Promise<IncomeReceipt> {
+    const paymentMethod = PAYMENT_METHOD_TO_BACKEND[input.payment] ?? input.payment?.toUpperCase() ?? "YAPE";
+
+    const response = await api.post("/api/v1/accounting/incomes", {
+      patientId: input.patientId,
+      totalAmount: input.totalAmount,
+      paymentMethod,
+      paidAt: input.paidAt,
+      clientName: input.clientName,
+      clientDocument: input.clientDocument,
+      clientPhone: input.clientPhone,
+      allocations: input.allocations,
+    });
+    return mapBackendIncome(response.data);
   },
 
-  async reset(): Promise<void> {
-    localStorage.removeItem(STORAGE_KEY);
+  async createChangeRequest(incomeId: string, payload: CreateChangeRequestPayload): Promise<void> {
+    await api.post(`/api/v1/accounting/incomes/${incomeId}/change-requests`, payload);
+  },
+
+  async getChangeRequests(params?: {
+    page?: number;
+    take?: number;
+    status?: string;
+    type?: string;
+  }): Promise<{ items: ChangeRequest[]; total: number; totalPages: number }> {
+    const response = await api.get("/api/v1/accounting/income-change-requests", {
+      params: { page: 1, take: 50, ...params },
+    });
+    return {
+      items: (response.data.items ?? []).map(mapBackendChangeRequest),
+      total: response.data.total ?? 0,
+      totalPages: response.data.totalPages ?? 0,
+    };
+  },
+
+  async reviewChangeRequest(requestId: string, payload: ReviewChangeRequestPayload): Promise<void> {
+    await api.put(`/api/v1/accounting/income-change-requests/${requestId}/review`, payload);
+  },
+
+  async getServices(): Promise<AccountingService[]> {
+    const response = await api.get("/api/v1/accounting/services");
+    return response.data ?? [];
+  },
+
+  async configureAppointmentBilling(appointmentId: string, payload: ConfigureBillingPayload): Promise<void> {
+    await api.put(`/api/v1/accounting/appointments/${appointmentId}/billing`, payload);
+  },
+
+  async getAppointmentPaymentSummary(appointmentId: string): Promise<any> {
+    const response = await api.get(`/api/v1/accounting/appointments/${appointmentId}/payment-summary`);
+    return response.data;
+  },
+
+  downloadReceiptPdfUrl(id: string): string {
+    return `/api/v1/accounting/incomes/${id}/receipt.pdf`;
+  },
+
+  async downloadReceiptPdf(id: string): Promise<void> {
+    const response = await api.get(`/api/v1/accounting/incomes/${id}/receipt.pdf`, {
+      responseType: "blob",
+    });
+    const url = URL.createObjectURL(response.data);
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  },
+
+  async getDailyRegister(date?: string): Promise<IncomeReceipt[]> {
+    const params: Record<string, string> = {};
+    if (date) params.date = date;
+    const response = await api.get("/api/v1/accounting/incomes/daily-register", { params });
+    return (response.data.entries ?? []).map(mapDailyRegisterEntry);
   },
 };
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}

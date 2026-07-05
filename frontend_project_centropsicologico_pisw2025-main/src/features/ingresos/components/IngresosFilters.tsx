@@ -2,16 +2,18 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PSYCHOLOGISTS, PAYMENT_METHODS, getEmptyFilters } from "../utils/ingresosUtils";
-import type { IncomeReceiptFilters } from "@/shared/interfaces/models/IncomeReceipt";
+import { PAYMENT_METHODS, getEmptyFilters } from "../utils/ingresosUtils";
+import type { IncomeReceiptFilters, PsychologistOption } from "@/shared/interfaces/models/IncomeReceipt";
 
 interface Props {
   filters: IncomeReceiptFilters;
   onChange: (filters: IncomeReceiptFilters) => void;
   onSearch: () => void;
+  psychologists?: PsychologistOption[];
+  loadingPsychologists?: boolean;
 }
 
-export const IngresosFilters = ({ filters, onChange, onSearch }: Props) => {
+export const IngresosFilters = ({ filters, onChange, onSearch, psychologists, loadingPsychologists }: Props) => {
   const update = (key: keyof IncomeReceiptFilters, value: string) => {
     onChange({ ...filters, [key]: value });
   };
@@ -40,14 +42,19 @@ export const IngresosFilters = ({ filters, onChange, onSearch }: Props) => {
       </div>
       <div className="space-y-1">
         <Label className="text-xs font-semibold">Psicólogo</Label>
-        <Select value={filters.psychologist} onValueChange={(v) => update("psychologist", v === "all" ? "" : v)}>
+        <Select
+          value={filters.psychologist}
+          onValueChange={(v) => update("psychologist", v === "all" ? "" : v)}
+        >
           <SelectTrigger>
-            <SelectValue placeholder="Todos" />
+            <SelectValue placeholder={loadingPsychologists ? "Cargando..." : "Todos"} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
-            {PSYCHOLOGISTS.map((p) => (
-              <SelectItem key={p} value={p}>{p}</SelectItem>
+            {(psychologists ?? []).map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.firstName} {p.lastName}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
