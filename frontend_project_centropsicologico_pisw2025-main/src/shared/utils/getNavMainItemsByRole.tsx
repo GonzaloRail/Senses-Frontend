@@ -1,5 +1,5 @@
 import { TbLayoutDashboardFilled, TbBuildings } from "react-icons/tb";
-import { FaUser, FaCalendarAlt } from "react-icons/fa";
+import { FaUser, FaCalendarAlt, FaMoneyBillWave } from "react-icons/fa";
 import { GiHealthNormal } from "react-icons/gi";
 import { PiOfficeChairBold } from "react-icons/pi";
 import { IoIosDocument } from "react-icons/io";
@@ -55,6 +55,11 @@ export const getNavMainItemsByRole = (role: string) => {
           icon: MdAnnouncement,
           url: "/announcements",
         },
+        {
+          title: "Libro de Egresos",
+          icon: FaMoneyBillWave,
+          url: "/admin-expenses",
+        },
       ];
     case "ADMISSION":
       return [
@@ -77,6 +82,11 @@ export const getNavMainItemsByRole = (role: string) => {
           title: "Gestión de permisos",
           icon: FaUserCog,
           url: "/employee-leaves",
+        },
+        {
+          title: "Mis Gastos",
+          icon: FaMoneyBillWave,
+          url: "/my-expenses",
         },
       ];
     case "PSYCHOLOGIST":

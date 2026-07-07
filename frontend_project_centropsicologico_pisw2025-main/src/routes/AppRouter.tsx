@@ -52,6 +52,8 @@ import { ResetPassword } from "@/features/auth/pages/ResetPassword";
 import { MySchedule } from "@/features/schedules/pages/MySchedule";
 import { MyAppointmentsList } from "@/features/my-appointments/pages/MyAppointmentsList";
 import { MyAppointmentInformation } from "@/features/my-appointments/pages/MyAppointmentInformation";
+import { MyExpensesPage } from "@/features/accounting/pages/MyExpensesPage";
+import { AdminExpensesPage } from "@/features/accounting/pages/AdminExpensesPage";
 
 // import { CreateLocation } from "@/features/locations/pages/CreateLocation";
 
@@ -158,6 +160,8 @@ export const AppRouter = () => {
                 <Route path="offices/:id" element={<OfficeInformation />} />
                 <Route path="offices/create" element={<CreateOffice />} />
 
+                <Route path="admin-expenses" element={<AdminExpensesPage />} />
+
                 <Route path="locations/" element={<LocationsList />} />
                 <Route path="location/:id" element={<LocationInformation />} />
                 <Route path="locations/create" element={<CreateLocation />} />
@@ -198,6 +202,8 @@ export const AppRouter = () => {
                   path="create-employee-leave"
                   element={<CreateEmployeeLeave />}
                 />
+                
+                <Route path="my-expenses/" element={<MyExpensesPage />} />
               </Route>
 
               {/* Rutas para admision y admin */}
