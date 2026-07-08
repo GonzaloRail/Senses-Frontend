@@ -94,7 +94,44 @@ export const AdminExpensesPage = () => {
   };
 
   const handleExportExcel = () => {
-    toast.info("Exportando a Excel...", { description: "Esta función descargará el reporte en CSV próximamente." });
+    if (filteredExpenses.length === 0) {
+      toast.error("Sin datos", { description: "No hay egresos para exportar con estos filtros." });
+      return;
+    }
+
+    // Cabeceras del CSV
+    const headers = ["Fecha", "Comprobante", "Nro Comprobante", "Proveedor", "RUC/DNI", "Concepto", "Area", "Monto (S/)", "Estado"];
+    
+    // Mapeo de filas
+    const rows = filteredExpenses.map(exp => [
+      formatDateTime(exp.createdAt).replace(",", ""),
+      receiptTypeMap[exp.receiptType] || exp.receiptType,
+      exp.receiptNumber || "-",
+      exp.supplierName ? `"${exp.supplierName.replace(/"/g, '""')}"` : "-",
+      exp.supplierDocument || "-",
+      `"${exp.concept.replace(/"/g, '""')}"`, 
+      purposeMap[exp.purpose] || exp.purpose,
+      Number(exp.amount).toFixed(2),
+      exp.status === "APPROVED" ? "Aprobado" : exp.status === "REJECTED" ? "Rechazado" : "Pendiente"
+    ]);
+
+    // Construcción del contenido
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.join(","))
+    ].join("\n");
+
+    // Descarga del archivo con BOM para UTF-8 en Excel
+    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `Egresos_Senses_${format(new Date(), "yyyyMMdd")}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success("¡Exportación exitosa!", { description: "El archivo Excel (CSV) se ha descargado." });
   };
 
   // Cálculo de estadísticas
