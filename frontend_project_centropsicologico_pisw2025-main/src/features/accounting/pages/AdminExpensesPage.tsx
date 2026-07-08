@@ -146,7 +146,8 @@ export const AdminExpensesPage = () => {
   // Filtros
   const filteredExpenses = expenses.filter(exp => {
     const matchesSearch = exp.concept.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (exp.supplierDocument && exp.supplierDocument.includes(searchTerm));
+                          (exp.supplierDocument && exp.supplierDocument.includes(searchTerm)) ||
+                          (exp.supplierName && exp.supplierName.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesStatus = statusFilter === "ALL" || exp.status === statusFilter;
     return matchesSearch && matchesStatus;
   });

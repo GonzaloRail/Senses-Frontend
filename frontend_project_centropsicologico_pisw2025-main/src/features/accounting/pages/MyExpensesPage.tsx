@@ -140,7 +140,8 @@ export const MyExpensesPage = () => {
 
   const filteredExpenses = expenses.filter(exp => 
     exp.concept.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (exp.supplierDocument && exp.supplierDocument.includes(searchTerm))
+    (exp.supplierDocument && exp.supplierDocument.includes(searchTerm)) ||
+    (exp.supplierName && exp.supplierName.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
