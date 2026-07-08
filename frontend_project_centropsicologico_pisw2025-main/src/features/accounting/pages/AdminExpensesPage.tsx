@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { DateRange } from "react-day-picker";
+import type { DateRange } from "react-day-picker";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { SiteHeader } from "@/shared/components/SiteHeader";
 import { Button } from "@/components/ui/button";
