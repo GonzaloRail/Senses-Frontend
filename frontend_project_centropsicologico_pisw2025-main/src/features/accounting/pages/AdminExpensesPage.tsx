@@ -143,6 +143,9 @@ export const AdminExpensesPage = () => {
     };
   }, [expenses]);
 
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
   // Filtros
   const filteredExpenses = expenses.filter(exp => {
     const matchesSearch = exp.concept.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -152,6 +155,15 @@ export const AdminExpensesPage = () => {
     const matchesStatus = statusFilter === "ALL" || exp.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  // Paginación Local
+  const totalPages = Math.max(1, Math.ceil(filteredExpenses.length / ITEMS_PER_PAGE));
+  const paginatedExpenses = filteredExpenses.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  // Resetear a la primera página si cambia la búsqueda
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, dateRange]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -332,14 +344,14 @@ export const AdminExpensesPage = () => {
                         Cargando egresos desde el servidor...
                       </TableCell>
                     </TableRow>
-                  ) : filteredExpenses.length === 0 ? (
+                  ) : paginatedExpenses.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="h-32 text-center text-slate-500">
                         No se encontraron gastos que coincidan con la búsqueda.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredExpenses.map((expense) => (
+                    paginatedExpenses.map((expense) => (
                       <TableRow key={expense.id} className="hover:bg-slate-50/50 transition-colors">
                         <TableCell className="text-xs text-slate-500 whitespace-nowrap">
                           {formatDateTime(expense.createdAt)}
@@ -400,8 +412,36 @@ export const AdminExpensesPage = () => {
                 </TableBody>
               </Table>
             </div>
+            {/* Controles de paginación */}
+            {filteredExpenses.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t bg-slate-50/50 gap-4">
+                <div className="text-sm text-slate-500">
+                  Mostrando {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredExpenses.length)} de {filteredExpenses.length} resultados
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  <div className="text-sm text-slate-600 font-medium px-2">
+                    Página {currentPage} de {totalPages}
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-
         </div>
       </div>
     </div>

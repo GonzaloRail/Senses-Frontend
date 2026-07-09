@@ -138,12 +138,22 @@ export const MyExpensesPage = () => {
     }
   };
 
+  const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+
   const filteredExpenses = expenses.filter(exp => 
     exp.concept.toLowerCase().includes(searchTerm.toLowerCase()) || 
     (exp.supplierDocument && exp.supplierDocument.includes(searchTerm)) ||
     (exp.supplierName && exp.supplierName.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (exp.receiptNumber && exp.receiptNumber.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const totalPages = Math.max(1, Math.ceil(filteredExpenses.length / ITEMS_PER_PAGE));
+  const paginatedExpenses = filteredExpenses.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
 
   return (
     <div className="h-screen flex flex-col bg-slate-50/50">
@@ -350,14 +360,14 @@ export const MyExpensesPage = () => {
                         Cargando egresos...
                       </TableCell>
                     </TableRow>
-                  ) : filteredExpenses.length === 0 ? (
+                  ) : paginatedExpenses.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-32 text-center text-slate-500">
-                        No has registrado gastos aún.
+                      <TableCell colSpan={6} className="h-24 text-center text-slate-500">
+                        No se encontraron gastos que coincidan con la búsqueda.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredExpenses.map((expense) => (
+                    paginatedExpenses.map((expense) => (
                       <TableRow key={expense.id} className="hover:bg-slate-50/50 transition-colors">
                         <TableCell className="text-xs text-slate-500 whitespace-nowrap">
                           {formatDateTime(expense.createdAt)}
@@ -392,8 +402,37 @@ export const MyExpensesPage = () => {
                 </TableBody>
               </Table>
             </div>
+            
+            {/* Controles de paginación */}
+            {filteredExpenses.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t bg-slate-50/50 gap-4">
+                <div className="text-sm text-slate-500">
+                  Mostrando {(currentPage - 1) * ITEMS_PER_PAGE + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredExpenses.length)} de {filteredExpenses.length} resultados
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Anterior
+                  </Button>
+                  <div className="text-sm text-slate-600 font-medium px-2">
+                    Página {currentPage} de {totalPages}
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
-
         </div>
       </div>
     </div>
