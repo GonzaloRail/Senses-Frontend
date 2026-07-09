@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { format } from "date-fns";
+import { format, addDays, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, subYears } from "date-fns";
 import { es } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -261,7 +261,27 @@ export const AdminExpensesPage = () => {
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
+                  <PopoverContent className="w-auto p-0 flex flex-col md:flex-row" align="end">
+                    <div className="flex flex-col gap-1 p-3 border-r border-slate-100 bg-slate-50/50">
+                      <Button variant="ghost" size="sm" className="justify-start text-xs font-medium text-slate-600 hover:text-slate-900" onClick={() => setDateRange({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) })}>
+                        Este mes
+                      </Button>
+                      <Button variant="ghost" size="sm" className="justify-start text-xs font-medium text-slate-600 hover:text-slate-900" onClick={() => setDateRange({ from: startOfMonth(subMonths(new Date(), 1)), to: endOfMonth(subMonths(new Date(), 1)) })}>
+                        Mes pasado
+                      </Button>
+                      <Button variant="ghost" size="sm" className="justify-start text-xs font-medium text-slate-600 hover:text-slate-900" onClick={() => setDateRange({ from: startOfMonth(subMonths(new Date(), 3)), to: endOfMonth(new Date()) })}>
+                        Últimos 3 meses
+                      </Button>
+                      <Button variant="ghost" size="sm" className="justify-start text-xs font-medium text-slate-600 hover:text-slate-900" onClick={() => setDateRange({ from: startOfYear(new Date()), to: endOfYear(new Date()) })}>
+                        Este año
+                      </Button>
+                      <Button variant="ghost" size="sm" className="justify-start text-xs font-medium text-slate-600 hover:text-slate-900" onClick={() => setDateRange({ from: startOfYear(subYears(new Date(), 1)), to: endOfYear(subYears(new Date(), 1)) })}>
+                        Año pasado
+                      </Button>
+                      <Button variant="ghost" size="sm" className="justify-start text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 mt-2" onClick={() => setDateRange(undefined)}>
+                        Limpiar fechas
+                      </Button>
+                    </div>
                     <Calendar
                       initialFocus
                       mode="range"
