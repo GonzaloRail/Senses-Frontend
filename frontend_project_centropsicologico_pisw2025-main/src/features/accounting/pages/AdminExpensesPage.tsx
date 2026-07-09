@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { format, addDays, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, subYears } from "date-fns";
+import { useState, useMemo, useEffect } from "react";
+import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, subYears } from "date-fns";
 import { es } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -161,7 +161,7 @@ export const AdminExpensesPage = () => {
   const paginatedExpenses = filteredExpenses.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   // Resetear a la primera página si cambia la búsqueda
-  useMemo(() => {
+  useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, dateRange]);
 
