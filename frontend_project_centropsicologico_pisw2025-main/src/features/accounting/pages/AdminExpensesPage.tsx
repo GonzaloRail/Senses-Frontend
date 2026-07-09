@@ -270,6 +270,9 @@ export const AdminExpensesPage = () => {
                       onSelect={setDateRange}
                       numberOfMonths={2}
                       locale={es}
+                      captionLayout="dropdown"
+                      startMonth={new Date(2020, 0)}
+                      endMonth={new Date(2030, 11)}
                     />
                   </PopoverContent>
                 </Popover>
