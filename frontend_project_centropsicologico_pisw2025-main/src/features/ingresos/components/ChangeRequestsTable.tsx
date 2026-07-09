@@ -15,7 +15,7 @@ interface Props {
 
 const statusBadge = (status: string) => {
   const colors: Record<string, string> = {
-    PENDING: "bg-yellow-100 text-yellow-800",
+    PENDING: "bg-senses-secondary/15 text-senses-secondary",
     APPROVED: "bg-green-100 text-green-800",
     REJECTED: "bg-red-100 text-red-800",
   };

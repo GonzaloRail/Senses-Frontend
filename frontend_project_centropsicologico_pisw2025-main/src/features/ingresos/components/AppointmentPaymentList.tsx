@@ -35,7 +35,7 @@ interface Props {
 const paymentStatusBadge = (status: string | null) => {
   const colors: Record<string, string> = {
     PAID: "bg-green-100 text-green-800",
-    PARTIALLY_PAID: "bg-yellow-100 text-yellow-800",
+    PARTIALLY_PAID: "bg-senses-secondary/15 text-senses-secondary",
     UNPAID: "bg-gray-100 text-gray-800",
     REFUND_PENDING: "bg-orange-100 text-orange-800",
     REFUNDED: "bg-red-100 text-red-800",
@@ -175,9 +175,9 @@ export const AppointmentPaymentList = ({
   return (
     <div className="space-y-4">
       {needsBilling.length > 0 && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4">
+        <div className="rounded-lg border border-senses-secondary/30 bg-senses-secondary/5 p-4">
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-semibold text-amber-800">
+            <h4 className="text-sm font-semibold text-senses-secondary">
               {needsBilling.length} cita(s) sin facturación
             </h4>
             <Button
@@ -193,8 +193,8 @@ export const AppointmentPaymentList = ({
           </div>
 
           {needsBilling.length > 3 && (
-            <div className="mb-3 p-3 rounded-lg bg-white border border-amber-300">
-              <p className="text-xs font-semibold text-amber-700 mb-2">
+            <div className="mb-3 p-3 rounded-lg bg-white border border-senses-secondary/30">
+              <p className="text-xs font-semibold text-senses-secondary mb-2">
                 ⚡ Configuración rápida — aplicar a todas
               </p>
               <div className="flex gap-2 items-end">
