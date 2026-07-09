@@ -14,6 +14,7 @@ const rolesName = {
   PSYCHOLOGIST: "Psicólogo",
   ADMIN: "Gerente",
   INTERNAL: "Interno",
+  AUDITOR: "Auditor",
 };
 
 export const SystemUsersList = () => {
