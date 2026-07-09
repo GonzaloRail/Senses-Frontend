@@ -141,7 +141,8 @@ export const MyExpensesPage = () => {
   const filteredExpenses = expenses.filter(exp => 
     exp.concept.toLowerCase().includes(searchTerm.toLowerCase()) || 
     (exp.supplierDocument && exp.supplierDocument.includes(searchTerm)) ||
-    (exp.supplierName && exp.supplierName.toLowerCase().includes(searchTerm.toLowerCase()))
+    (exp.supplierName && exp.supplierName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (exp.receiptNumber && exp.receiptNumber.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -155,7 +156,7 @@ export const MyExpensesPage = () => {
             <div className="relative w-full sm:w-96">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <Input 
-                placeholder="Buscar por RUC, concepto o proveedor..." 
+                placeholder="Buscar RUC, concepto, proveedor, N° comprobante..." 
                 className="pl-9 h-10 text-sm rounded-lg"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
