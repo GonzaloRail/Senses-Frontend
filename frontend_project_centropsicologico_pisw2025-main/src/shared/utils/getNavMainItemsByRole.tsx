@@ -5,6 +5,7 @@ import { PiOfficeChairBold } from "react-icons/pi";
 import { IoIosDocument } from "react-icons/io";
 import { MdInventory, MdAnnouncement } from "react-icons/md";
 import { FaUserCog } from "react-icons/fa";
+import { TbReceipt } from "react-icons/tb";
 
 export const getNavMainItemsByRole = (role: string) => {
   switch (role) {
@@ -60,6 +61,11 @@ export const getNavMainItemsByRole = (role: string) => {
           icon: FaMoneyBillWave,
           url: "/admin-expenses",
         },
+        {
+          title: "Registro de ingresos",
+          icon: TbReceipt,
+          url: "/ingresos",
+        }
       ];
     case "ADMISSION":
       return [
@@ -87,7 +93,13 @@ export const getNavMainItemsByRole = (role: string) => {
           title: "Mis Gastos",
           icon: FaMoneyBillWave,
           url: "/my-expenses",
+        
         },
+        {
+          title: "Registro de ingresos",
+          icon: TbReceipt,
+          url: "/ingresos",
+        }
       ];
     case "PSYCHOLOGIST":
       return [
@@ -105,6 +117,14 @@ export const getNavMainItemsByRole = (role: string) => {
           title: "Citas",
           icon: GiHealthNormal,
           url: "/my-appointments",
+        },
+      ];
+    case "AUDITOR":
+      return [
+        {
+          title: "Registro de ingresos",
+          icon: TbReceipt,
+          url: "/ingresos",
         },
       ];
     default:

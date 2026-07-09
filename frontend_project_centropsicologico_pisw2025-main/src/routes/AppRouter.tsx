@@ -54,6 +54,7 @@ import { MyAppointmentsList } from "@/features/my-appointments/pages/MyAppointme
 import { MyAppointmentInformation } from "@/features/my-appointments/pages/MyAppointmentInformation";
 import { MyExpensesPage } from "@/features/accounting/pages/MyExpensesPage";
 import { AdminExpensesPage } from "@/features/accounting/pages/AdminExpensesPage";
+import { IngresosList, CreateIngreso, IncomeReportByPsychologist } from "@/features/ingresos";
 
 // import { CreateLocation } from "@/features/locations/pages/CreateLocation";
 
@@ -115,9 +116,11 @@ export const AppRouter = () => {
                     <Navigate to="/dashboard" replace />
                   ) : roleNameSelected === "ADMISSION" ? (
                     <Navigate to="/patients" replace />
-                  ) : roleNameSelected === "PSYCHOLOGIST" ||
+                  ) :                   roleNameSelected === "PSYCHOLOGIST" ||
                     roleNameSelected === "INTERNAL" ? (
                     <Navigate to="/my-patients" replace />
+                  ) : roleNameSelected === "AUDITOR" ? (
+                    <Navigate to="/ingresos" replace />
                   ) : (
                     <Navigate to="/not-found" replace />
                   )
@@ -223,6 +226,17 @@ export const AppRouter = () => {
                 />
               </Route>
 
+              {/* Rutas para admin, admision y auditor */}
+              <Route
+                element={
+                  <ProtectedRoute allowedRoles={["ADMIN", "ADMISSION", "AUDITOR"]} />
+                }
+              >
+                <Route path="ingresos/" element={<IngresosList />} />
+                <Route path="ingresos/create" element={<CreateIngreso />} />
+                <Route path="ingresos/report-by-psychologist" element={<IncomeReportByPsychologist />} />
+              </Route>
+
               {/* Para cualquier otro rol autenticado, mostrar NotFound */}
               <Route
                 element={
@@ -245,6 +259,10 @@ export const AppRouter = () => {
                 />
 
                 <Route path="/other-roles" element={<NotFound />} />
+              </Route>
+
+              {/* Rutas solo para auditor */}
+              <Route element={<ProtectedRoute allowedRoles={["AUDITOR"]} />}>
               </Route>
             </>
           </Route>

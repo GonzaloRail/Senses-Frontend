@@ -1,6 +1,6 @@
 import type { UserRole } from "./UserRole";
 
-export type RoleType = "ADMIN" | "ADMISSION" | "PSYCHOLOGIST" | "INTERNAL";
+export type RoleType = "ADMIN" | "ADMISSION" | "PSYCHOLOGIST" | "INTERNAL" | "AUDITOR";
 
 export interface Role {
   id: string;

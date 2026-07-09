@@ -100,4 +100,27 @@ export const updatePatientPsychologistIdApi = async ({
     { psychologistId }
   );
   return response.data;
-}
+};
+
+export const getAppointmentsByPatientApi = async (
+  patientId: string,
+  params?: { from?: string; to?: string }
+) => {
+  const response = await api.get(`/api/v1/appointments/patient/${patientId}`, {
+    params,
+  });
+  return response.data as Array<{
+    title: string;
+    startDate: string;
+    endDate: string;
+    resource: {
+      id: string;
+      officeName: string;
+      psychologistName: string;
+      patientName: string;
+      status: string;
+      paymentStatus: string | null;
+      type: string;
+    };
+  }>;
+};

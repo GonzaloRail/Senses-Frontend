@@ -286,13 +286,17 @@ const CalendarSlot = ({ state, ariaLabel, canDrag = true, onClick }: CalendarSlo
   }
 
   if (state.status === "unavailable") {
-    return <div className="h-8 border border-slate-200 bg-slate-100" />;
+    return (
+      <div className="flex h-8 w-full items-center justify-center border border-slate-200 bg-slate-100 text-xs text-slate-400 opacity-60 select-none">
+        —
+      </div>
+    );
   }
 
   return (
     <button
       aria-label={ariaLabel}
-      className="h-8 w-full border border-senses-secondary/40 bg-senses-secondary/10 transition hover:bg-senses-secondary/25 focus:outline-none focus:ring-2 focus:ring-senses-secondary"
+      className="h-8 w-full border border-senses-secondary bg-senses-secondary/20 transition hover:bg-senses-secondary/35 focus:outline-none focus:ring-2 focus:ring-senses-secondary"
       onClick={onClick}
       type="button"
     />
@@ -1160,7 +1164,7 @@ export const AppointmentScheduler = ({
                 )}
                 <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-slate-600">
                   <div className="flex items-center gap-1.5">
-                    <span className="inline-block h-3 w-3 rounded-sm border border-senses-secondary/40 bg-senses-secondary/15" />
+                    <span className="inline-block h-3 w-3 rounded-sm border border-senses-secondary bg-senses-secondary/20" />
                     <span>Disponible según horario</span>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -1168,7 +1172,7 @@ export const AppointmentScheduler = ({
                     <span>Cita</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="inline-block h-3 w-3 rounded-sm bg-slate-100 ring-1 ring-slate-200" />
+                    <span className="inline-block h-3 w-3 rounded-sm bg-slate-100 text-[10px] leading-none text-slate-400 ring-1 ring-slate-200 opacity-60">—</span>
                     <span>Fuera de horario</span>
                   </div>
                 </div>
