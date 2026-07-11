@@ -4,11 +4,14 @@ import { getAuth, setAuth } from "@/store/auth/auth.store";
 import { queryClient } from "@/lib/queryClient";
 
 const api = axios.create({
-  baseURL: import.meta.env.MODE === 'production' 
-    ? "https://senses-backend-n8x5.onrender.com" 
-    : "http://localhost:5000",
+  // baseURL: import.meta.env.VITE_API_URL,
+  //baseURL: "http://localhost:5000",
+  //baseURL: "http://localhost:5000",
+  //baseURL: "https://senses-app-backend-324428736826.us-east1.run.app",
+  baseURL: "https://senses-backend-n8x5.onrender.com",
   withCredentials: true, // para enviar cookies
 });
+
 
 api.interceptors.request.use((config) => {
   const token = getAuth().accessToken;
