@@ -222,8 +222,9 @@ export const IngresoForm = ({ onSubmit, onCancel, isPending }: Props) => {
               <Label className="text-xs">DNI del cliente</Label>
               <Input
                 value={clientDni}
-                onChange={(e) => { setClientDni(e.target.value); if (payerType === "patient" || payerType === "parent") setPayerType("other"); }}
-                maxLength={12}
+                onChange={(e) => { setClientDni(e.target.value.replace(/\D/g, "")); if (payerType === "patient" || payerType === "parent") setPayerType("other"); }}
+                maxLength={8}
+                inputMode="numeric"
                 placeholder="DNI del cliente"
                 className="h-8"
               />
@@ -266,7 +267,9 @@ export const IngresoForm = ({ onSubmit, onCancel, isPending }: Props) => {
               <Label className="text-xs">Celular</Label>
               <Input
                 value={phone}
-                onChange={(e) => { setPhone(e.target.value); if (payerType === "patient" || payerType === "parent") setPayerType("other"); }}
+                onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "")); if (payerType === "patient" || payerType === "parent") setPayerType("other"); }}
+                maxLength={9}
+                inputMode="numeric"
                 placeholder="Número de celular"
                 className="h-8"
               />

@@ -24,6 +24,11 @@ const statusBadge = (status: string) => {
 
 export const ChangeRequestsTable = ({ requests, loading, isAdmin, onRefresh }: Props) => {
   const [reviewTarget, setReviewTarget] = useState<ChangeRequest | null>(null);
+  const [page, setPage] = useState(0);
+  const pageSize = 15;
+  const totalPages = Math.max(1, Math.ceil(requests.length / pageSize));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageRequests = requests.slice(safePage * pageSize, (safePage + 1) * pageSize);
 
   if (loading) {
     return <div className="text-center text-muted-foreground py-12">Cargando solicitudes...</div>;
@@ -49,7 +54,7 @@ export const ChangeRequestsTable = ({ requests, loading, isAdmin, onRefresh }: P
             </TableRow>
           </TableHeader>
           <TableBody>
-            {requests.map((r) => (
+            {pageRequests.map((r) => (
               <TableRow key={r.id} className="hover:bg-muted/50">
                 <TableCell>{CHANGE_TYPE_LABELS[r.type] || r.type}</TableCell>
                 <TableCell className="font-mono">{r.receiptCode}</TableCell>
@@ -73,6 +78,22 @@ export const ChangeRequestsTable = ({ requests, loading, isAdmin, onRefresh }: P
           </TableBody>
         </Table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-2 py-4">
+          <p className="text-sm text-muted-foreground">
+            {requests.length} resultado(s) — Página {safePage + 1} de {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" disabled={safePage === 0} onClick={() => setPage(p => p - 1)}>
+              Anterior
+            </Button>
+            <Button size="sm" variant="outline" disabled={safePage >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+              Siguiente
+            </Button>
+          </div>
+        </div>
+      )}
 
       {reviewTarget && (
         <ReviewChangeRequestModal

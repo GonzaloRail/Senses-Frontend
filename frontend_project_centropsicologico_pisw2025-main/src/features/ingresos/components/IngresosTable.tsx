@@ -29,8 +29,13 @@ const statusBadge = (status: IncomeReceipt["status"]) => {
 };
 
 export const IngresosTable = ({ receipts, onView, onShowReceipt }: Props) => {
-  const [changeRequestTarget, setChangeRequestTarget] = useState<{ id: string; type: "CANCELLATION" | "CORRECTION" | "REFUND" } | null>(null);
+  const [changeRequestTarget, setChangeRequestTarget] = useState<{ id: string; type: "CANCELLATION" | "CORRECTION" } | null>(null);
   const [editTarget, setEditTarget] = useState<IncomeReceipt | null>(null);
+  const [page, setPage] = useState(0);
+  const pageSize = 15;
+  const totalPages = Math.max(1, Math.ceil(receipts.length / pageSize));
+  const safePage = Math.min(page, totalPages - 1);
+  const pageReceipts = receipts.slice(safePage * pageSize, (safePage + 1) * pageSize);
 
   if (!receipts.length) {
     return (
@@ -66,7 +71,7 @@ export const IngresosTable = ({ receipts, onView, onShowReceipt }: Props) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {receipts.map((r) => (
+            {pageReceipts.map((r) => (
               <TableRow key={r.id} className="hover:bg-muted/50">
                 <TableCell>{dateDisplay(r.date)}</TableCell>
                 <TableCell>{r.series}</TableCell>
@@ -107,9 +112,6 @@ export const IngresosTable = ({ receipts, onView, onShowReceipt }: Props) => {
                           <DropdownMenuItem onClick={() => setChangeRequestTarget({ id: r.id, type: "CORRECTION" })}>
                             Corregir
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setChangeRequestTarget({ id: r.id, type: "REFUND" })}>
-                            Devolver
-                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
@@ -120,6 +122,22 @@ export const IngresosTable = ({ receipts, onView, onShowReceipt }: Props) => {
           </TableBody>
         </Table>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-2 py-4">
+          <p className="text-sm text-muted-foreground">
+            {receipts.length} resultado(s) — Página {safePage + 1} de {totalPages}
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" disabled={safePage === 0} onClick={() => setPage(p => p - 1)}>
+              Anterior
+            </Button>
+            <Button size="sm" variant="outline" disabled={safePage >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+              Siguiente
+            </Button>
+          </div>
+        </div>
+      )}
 
       {changeRequestTarget && (
         <ChangeRequestModal

@@ -143,6 +143,8 @@ export const ReviewChangeRequestModal = ({ request, open, onClose, onReviewed }:
       onClose();
       onReviewed?.();
     } catch (error: any) {
+      console.log("REVIEW ERROR PAYLOAD", payload);
+      console.log("REVIEW ERROR RESPONSE", error.response?.data);
       const msg = error?.response?.data?.message || error?.message || "Error al revisar la solicitud";
       toast.error(msg);
     }
@@ -203,11 +205,11 @@ export const ReviewChangeRequestModal = ({ request, open, onClose, onReviewed }:
                       </div>
                       <div className="space-y-1">
                         <Label>Documento</Label>
-                        <Input value={clientDocument} onChange={(e) => setClientDocument(e.target.value)} />
+                        <Input value={clientDocument} onChange={(e) => setClientDocument(e.target.value.replace(/\D/g, ""))} maxLength={8} inputMode="numeric" />
                       </div>
                       <div className="space-y-1">
                         <Label>Teléfono</Label>
-                        <Input value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} />
+                        <Input value={clientPhone} onChange={(e) => setClientPhone(e.target.value.replace(/\D/g, ""))} maxLength={9} inputMode="numeric" />
                       </div>
                     </div>
 
