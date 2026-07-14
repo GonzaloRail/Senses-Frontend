@@ -22,8 +22,8 @@ export const mockPsychologists: MockPsychologist[] = [
 
 export const mockReceipts: MockReceipt[] = [
   {
-    id: "REC-2023-0001",
-    date: "2023-10-15T10:00:00Z",
+    id: "REC-2026-0001",
+    date: new Date().toISOString(), // Hoy
     patientName: "Juan Pérez",
     service: "Terapia Individual",
     amount: 100,
@@ -31,8 +31,8 @@ export const mockReceipts: MockReceipt[] = [
     psychologistId: "psy_1",
   },
   {
-    id: "REC-2023-0002",
-    date: "2023-10-15T11:00:00Z",
+    id: "REC-2026-0002",
+    date: new Date(Date.now() - 86400000).toISOString(), // Ayer
     patientName: "Lucía Fernández",
     service: "Terapia de Pareja",
     amount: 150,
@@ -40,8 +40,8 @@ export const mockReceipts: MockReceipt[] = [
     psychologistId: "psy_1",
   },
   {
-    id: "REC-2023-0003",
-    date: "2023-10-16T15:00:00Z",
+    id: "REC-2026-0003",
+    date: new Date(Date.now() - 86400000 * 2).toISOString(), // Hace 2 días
     patientName: "Marcos Díaz",
     service: "Evaluación Psicológica",
     amount: 200,
@@ -49,8 +49,8 @@ export const mockReceipts: MockReceipt[] = [
     psychologistId: "psy_1",
   },
   {
-    id: "REC-2023-0004",
-    date: "2023-10-17T09:00:00Z",
+    id: "REC-2026-0004",
+    date: new Date(Date.now() - 86400000 * 3).toISOString(), // Hace 3 días
     patientName: "Elena Vargas",
     service: "Terapia Infantil",
     amount: 120,
@@ -58,8 +58,8 @@ export const mockReceipts: MockReceipt[] = [
     psychologistId: "psy_2",
   },
   {
-    id: "REC-2023-0005",
-    date: "2023-10-18T14:30:00Z",
+    id: "REC-2026-0005",
+    date: new Date(Date.now() - 86400000 * 4).toISOString(), // Hace 4 días
     patientName: "Roberto Sánchez",
     service: "Terapia Individual",
     amount: 100,
