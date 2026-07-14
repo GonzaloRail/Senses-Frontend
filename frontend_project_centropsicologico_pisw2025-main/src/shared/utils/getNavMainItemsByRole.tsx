@@ -1,5 +1,5 @@
 import { TbLayoutDashboardFilled, TbBuildings } from "react-icons/tb";
-import { FaUser, FaCalendarAlt, FaMoneyBillWave } from "react-icons/fa";
+import { FaUser, FaCalendarAlt, FaMoneyBillWave, FaPercentage } from "react-icons/fa";
 import { GiHealthNormal } from "react-icons/gi";
 import { PiOfficeChairBold } from "react-icons/pi";
 import { IoIosDocument } from "react-icons/io";
@@ -65,6 +65,11 @@ export const getNavMainItemsByRole = (role: string) => {
           title: "Registro de ingresos",
           icon: TbReceipt,
           url: "/ingresos",
+        },
+        {
+          title: "Comisiones de Psicólogos",
+          icon: FaPercentage,
+          url: "/commissions",
         }
       ];
     case "ADMISSION":
