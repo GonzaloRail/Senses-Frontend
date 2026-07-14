@@ -39,7 +39,7 @@ import { accountingExpensesApi } from "../api/accountingExpensesApi";
 
 // Form Schema
 const expenseSchema = z.object({
-  type: z.enum(["FIXED", "VARIABLE", "ASSET"]),
+  type: z.enum(["FIXED", "VARIABLE"]),
   concept: z.string().min(3, "El concepto debe tener al menos 3 caracteres"),
   amount: z.coerce.number().positive("El monto debe ser positivo"),
   purpose: z.enum(["SERVICES", "MATERIALS", "TAXES", "OTHER"]),
@@ -302,7 +302,6 @@ export const MyExpensesPage = () => {
                               <SelectContent>
                                 <SelectItem value="FIXED">Fijo</SelectItem>
                                 <SelectItem value="VARIABLE">Variable</SelectItem>
-                                <SelectItem value="ASSET">Activo Fijo</SelectItem>
                               </SelectContent>
                             </Select>
                           )}
