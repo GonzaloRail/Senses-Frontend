@@ -1,8 +1,8 @@
 import type { MockReceipt, MockExpense, CashFlowData } from "@/shared/interfaces/models/Financial";
+import api from "@/api/api";
 import { ingresosApi } from "@/features/ingresos/api/ingresosApi";
 import { accountingExpensesApi } from "@/features/accounting/api/accountingExpensesApi";
-import { calculateCommissions } from "@/features/financial-dashboard/utils/commissions";
-import { OPENING_BALANCE, MOCK_EXPENSES } from "@/features/financial-dashboard/utils/mockData";
+import { calculateCommissionsFromReceipts } from "@/features/financial-dashboard/utils/commissions";
 
 export interface ReportFilters {
   dateFrom: string;
@@ -40,6 +40,17 @@ function expenseToMock(item: import("@/features/accounting/api/accountingExpense
   };
 }
 
+async function fetchOpeningBalance(toDate: string): Promise<number> {
+  try {
+    const params: Record<string, string> = {};
+    if (toDate) params.to = new Date(toDate).toISOString();
+    const response = await api.get("/api/v1/accounting/balance", { params });
+    return Number(response.data?.totals?.availableBalance) || 0;
+  } catch {
+    return 0;
+  }
+}
+
 export async function fetchReport(type: ReportType, filters: ReportFilters) {
   switch (type) {
     case "income":
@@ -57,15 +68,11 @@ export async function fetchReport(type: ReportType, filters: ReportFilters) {
       return items;
     }
     case "expenses": {
-      try {
-        const result = await accountingExpensesApi.getAll({
-          page: 1, take: 500,
-          startDate: filters.dateFrom, endDate: filters.dateTo,
-        });
-        return (result?.data ?? []).map(expenseToMock);
-      } catch {
-        return MOCK_EXPENSES.filter((e) => e.status === "Aprobado").map(expenseToMock);
-      }
+      const result = await accountingExpensesApi.getAll({
+        page: 1, take: 500,
+        startDate: filters.dateFrom, endDate: filters.dateTo,
+      });
+      return (result?.data ?? []).map(expenseToMock);
     }
     case "commissions": {
       const list = await ingresosApi.getFiltered({
@@ -74,31 +81,31 @@ export async function fetchReport(type: ReportType, filters: ReportFilters) {
         payment: filters.paymentMethod ?? "", number: "",
       });
       const receipts = list.filter((r) => r.status !== "Anulado").map(incomeToMock);
-      return calculateCommissions(receipts);
+      return calculateCommissionsFromReceipts(receipts);
     }
     case "cash-flow": {
-      const incomeList = await ingresosApi.getFiltered({
-        dateFrom: filters.dateFrom, dateTo: filters.dateTo,
-        patient: "", client: "", psychologist: "",
-        payment: filters.paymentMethod ?? "", number: "",
-      });
-      const incomes = incomeList.filter((r) => r.status !== "Anulado").map(incomeToMock);
-      let exps: MockExpense[];
-      try {
-        const expenseResult = await accountingExpensesApi.getAll({
+      const [incomeList, expenseResult, openingBalance] = await Promise.all([
+        ingresosApi.getFiltered({
+          dateFrom: filters.dateFrom, dateTo: filters.dateTo,
+          patient: "", client: "", psychologist: "",
+          payment: filters.paymentMethod ?? "", number: "",
+        }),
+        accountingExpensesApi.getAll({
           take: 200,
           startDate: new Date(filters.dateFrom).toISOString(),
           endDate: new Date(filters.dateTo + "T23:59:59").toISOString(),
-        });
-        exps = (expenseResult?.data ?? [])
-          .filter((e: any) => e.status === "APPROVED")
-          .map(expenseToMock);
-      } catch {
-        exps = MOCK_EXPENSES.filter((e) => e.status === "Aprobado").map(expenseToMock);
-      }
+        }).catch(() => ({ data: [] as any[] })),
+        fetchOpeningBalance(filters.dateFrom),
+      ]);
+
+      const incomes = incomeList.filter((r) => r.status !== "Anulado").map(incomeToMock);
+      const exps = (expenseResult?.data ?? [])
+        .filter((e: any) => e.status === "APPROVED")
+        .map(expenseToMock);
+
       const daysSet = new Set([...incomes.map((r) => r.date), ...exps.map((e) => e.date)]);
       const sorted = Array.from(daysSet).sort();
-      let saldo = OPENING_BALANCE;
+      let saldo = openingBalance;
       const rows = sorted.map((day) => {
         const incomeDay = incomes.filter((r) => r.date === day).reduce((s, r) => s + r.total, 0);
         const fixed = exps.filter((e) => e.date === day && e.type === "Fijo").reduce((s, e) => s + e.amount, 0);
@@ -111,7 +118,8 @@ export async function fetchReport(type: ReportType, filters: ReportFilters) {
         return row;
       });
       return {
-        opening: OPENING_BALANCE, rows,
+        opening: openingBalance,
+        rows,
         final: saldo,
         totalIncome: incomes.reduce((s, r) => s + r.total, 0),
         totalExpenses: exps.reduce((s, e) => s + e.amount, 0),

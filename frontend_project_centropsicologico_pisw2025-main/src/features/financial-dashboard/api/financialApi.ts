@@ -8,10 +8,11 @@ import type {
   MockReceipt,
   MockExpense,
 } from "@/shared/interfaces/models/Financial";
+import api from "@/api/api";
 import { ingresosApi } from "@/features/ingresos/api/ingresosApi";
 import { accountingExpensesApi } from "@/features/accounting/api/accountingExpensesApi";
-import { calculateCommissions } from "../utils/commissions";
-import { OPENING_BALANCE, PAYMENT_METHODS, EXPENSE_TYPES, MOCK_EXPENSES } from "../utils/mockData";
+import { calculateCommissionsFromReceipts } from "../utils/commissions";
+import { PAYMENT_METHODS, EXPENSE_TYPES } from "../utils/mockData";
 
 export interface DashboardParams {
   dateMode: DateMode;
@@ -82,40 +83,52 @@ function expenseToMock(item: import("@/features/accounting/api/accountingExpense
   };
 }
 
+async function fetchOpeningBalance(toDate: string): Promise<number> {
+  try {
+    const params: Record<string, string> = {};
+    if (toDate) params.to = new Date(toDate).toISOString();
+    const response = await api.get("/api/v1/accounting/balance", { params });
+    return Number(response.data?.totals?.availableBalance) || 0;
+  } catch {
+    return 0;
+  }
+}
+
 export async function fetchDashboardData(params: DashboardParams): Promise<DashboardData> {
   const dr = getDateRange(params.dateMode, params.selectedDate, params.customFrom, params.customTo);
 
-  const incomeList = await ingresosApi.getFiltered({
-    dateFrom: dr.from, dateTo: dr.to,
-    patient: "", client: "", psychologist: "",
-    payment: params.paymentFilter, number: "",
-  });
-
-  let exps: MockExpense[] = [];
-  try {
-    const expenseResult = await accountingExpensesApi.getAll({
+  const [incomeList, expenseResult, openingBalance] = await Promise.all([
+    ingresosApi.getFiltered({
+      dateFrom: dr.from, dateTo: dr.to,
+      patient: "", client: "", psychologist: "",
+      payment: params.paymentFilter, number: "",
+    }),
+    accountingExpensesApi.getAll({
       take: 200,
       startDate: new Date(dr.from).toISOString(),
       endDate: new Date(dr.to + "T23:59:59").toISOString(),
-    });
-    exps = (expenseResult?.data ?? [])
-      .filter((e: any) => e.status === "APPROVED")
-      .map(expenseToMock);
-  } catch {
-    exps = MOCK_EXPENSES.filter((e) => e.status === "Aprobado");
-  }
+    }).catch(() => ({ data: [] as any[] })),
+    fetchOpeningBalance(dr.from),
+  ]);
+
+  const exps: MockExpense[] = (expenseResult?.data ?? [])
+    .filter((e: any) => e.status === "APPROVED")
+    .map(expenseToMock);
 
   const receipts = incomeList.filter((r) => r.status !== "Anulado").map(incomeToMock);
 
   const totalIncome = receipts.reduce((s, r) => s + r.total, 0);
   const totalExpenses = exps.reduce((s, e) => s + e.amount, 0);
+  const availableBalance = Math.round((openingBalance + totalIncome - totalExpenses) * 100) / 100;
+
+  const commissions = calculateCommissionsFromReceipts(receipts);
 
   const summary: FinancialSummary = {
     totalIncome,
     totalExpenses,
-    openingBalance: OPENING_BALANCE,
-    availableBalance: Math.round((OPENING_BALANCE + totalIncome - totalExpenses) * 100) / 100,
-    totalCommissions: 0,
+    openingBalance,
+    availableBalance,
+    totalCommissions: commissions.reduce((s, c) => s + c.commission, 0),
     incomeCount: receipts.length,
     expensesCount: exps.length,
   };
@@ -132,12 +145,9 @@ export async function fetchDashboardData(params: DashboardParams): Promise<Dashb
     count: exps.filter((e) => e.type === t).length,
   }));
 
-  const commissions = calculateCommissions(receipts);
-  summary.totalCommissions = commissions.reduce((s, c) => s + c.commission, 0);
-
   const daysSet = new Set([...receipts.map((r) => r.date), ...exps.map((e) => e.date)]);
   const sorted = Array.from(daysSet).sort();
-  let saldo = OPENING_BALANCE;
+  let saldo = openingBalance;
   const flowRows = sorted.map((day) => {
     const incomeDay = receipts.filter((r) => r.date === day).reduce((s, r) => s + r.total, 0);
     const fixed = exps.filter((e) => e.date === day && e.type === "Fijo").reduce((s, e) => s + e.amount, 0);
@@ -151,7 +161,7 @@ export async function fetchDashboardData(params: DashboardParams): Promise<Dashb
   });
 
   const cashFlow: CashFlowData = {
-    opening: OPENING_BALANCE,
+    opening: openingBalance,
     rows: flowRows,
     final: saldo,
     totalIncome: receipts.reduce((s, r) => s + r.total, 0),
