@@ -24,6 +24,7 @@ import {
   type UserFormSchema,
 } from "@/shared/interfaces/forms/UserFormSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { PsychologistCommissionSettings } from "../components/PsychologistCommissionSettings";
 import { useAlert } from "@/shared/hooks/useAlert";
 import type { AxiosError } from "axios";
 import { Loading } from "@/shared/components/Loading";
@@ -876,6 +877,13 @@ export const SystemUserInformation = () => {
               </div>
             </div>
           </form>
+
+          {/* Configuración de honorarios si es psicólogo y está en modo vista */}
+          {mode === "view" && id && userData?.roles?.some((r: any) => r.name === "PSYCHOLOGIST") && (
+            <div className="p-4 md:p-6 max-w-[1200px] w-full mx-auto mb-10">
+              <PsychologistCommissionSettings psychologistId={id} />
+            </div>
+          )}
         </>
       </div>
     </FormProvider>
