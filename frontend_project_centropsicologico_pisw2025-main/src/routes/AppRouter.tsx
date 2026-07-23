@@ -56,7 +56,7 @@ import { MyExpensesPage } from "@/features/accounting/pages/MyExpensesPage";
 import { AdminExpensesPage } from "@/features/accounting/pages/AdminExpensesPage";
 import { IngresosList, CreateIngreso, IncomeReportByPsychologist } from "@/features/ingresos";
 import { CommissionsPage } from "@/features/commissions";
-import { AuditPage } from "@/features/audit";
+import { AuditPage } from "@/features/audit/pages/AuditPage";
 // import { CreateLocation } from "@/features/locations/pages/CreateLocation";
 
 export const AppRouter = () => {
