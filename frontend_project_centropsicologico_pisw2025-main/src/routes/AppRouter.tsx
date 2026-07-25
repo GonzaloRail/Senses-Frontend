@@ -58,6 +58,7 @@ import { IngresosList, CreateIngreso, IncomeReportByPsychologist } from "@/featu
 import { FinancialDashboard } from "@/features/financial-dashboard/pages/FinancialDashboard";
 import { ReportsPage } from "@/features/reports/pages/ReportsPage";
 import { CommissionsPage } from "@/features/commissions";
+import { AuditPage } from "@/features/audit/pages/AuditPage";
 // import { CreateLocation } from "@/features/locations/pages/CreateLocation";
 
 export const AppRouter = () => {
@@ -133,6 +134,7 @@ export const AppRouter = () => {
               <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
                 <Route path="dashboard/" element={<Dashboard />} />
                 <Route path="commissions/" element={<CommissionsPage />} />
+                <Route path="audit-logs/" element={<AuditPage />} />
                 <Route path="announcements/" element={<AnnouncementManagementPage />} />
                 <Route path="system-users/" element={<SystemUsersList />} />
                 <Route

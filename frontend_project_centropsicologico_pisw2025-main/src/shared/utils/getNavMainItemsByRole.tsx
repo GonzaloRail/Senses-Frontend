@@ -80,6 +80,11 @@ export const getNavMainItemsByRole = (role: string) => {
           title: "Comisiones de Psicólogos",
           icon: FaPercentage,
           url: "/commissions",
+        },
+        {
+          title: "Auditoría Contable",
+          icon: FaClipboardList,
+          url: "/audit-logs",
         }
       ];
     case "ADMISSION":
