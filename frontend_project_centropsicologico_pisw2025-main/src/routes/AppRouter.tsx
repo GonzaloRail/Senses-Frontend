@@ -57,7 +57,7 @@ import { AdminExpensesPage } from "@/features/accounting/pages/AdminExpensesPage
 import { IngresosList, CreateIngreso, IncomeReportByPsychologist } from "@/features/ingresos";
 import { FinancialDashboard } from "@/features/financial-dashboard/pages/FinancialDashboard";
 import { ReportsPage } from "@/features/reports/pages/ReportsPage";
-
+import { CommissionsPage } from "@/features/commissions";
 // import { CreateLocation } from "@/features/locations/pages/CreateLocation";
 
 export const AppRouter = () => {
@@ -132,6 +132,7 @@ export const AppRouter = () => {
               {/* Rutas solo para gerente */}
               <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
                 <Route path="dashboard/" element={<Dashboard />} />
+                <Route path="commissions/" element={<CommissionsPage />} />
                 <Route path="announcements/" element={<AnnouncementManagementPage />} />
                 <Route path="system-users/" element={<SystemUsersList />} />
                 <Route
