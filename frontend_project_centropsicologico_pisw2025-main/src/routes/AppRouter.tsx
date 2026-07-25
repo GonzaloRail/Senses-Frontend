@@ -55,6 +55,8 @@ import { MyAppointmentInformation } from "@/features/my-appointments/pages/MyApp
 import { MyExpensesPage } from "@/features/accounting/pages/MyExpensesPage";
 import { AdminExpensesPage } from "@/features/accounting/pages/AdminExpensesPage";
 import { IngresosList, CreateIngreso, IncomeReportByPsychologist } from "@/features/ingresos";
+import { FinancialDashboard } from "@/features/financial-dashboard/pages/FinancialDashboard";
+import { ReportsPage } from "@/features/reports/pages/ReportsPage";
 
 // import { CreateLocation } from "@/features/locations/pages/CreateLocation";
 
@@ -172,6 +174,9 @@ export const AppRouter = () => {
                 <Route path="inventory/" element={<ItemsList />} />
                 <Route path="inventory/:id" element={<ItemInformation />} />
                 <Route path="inventory/create" element={<CreateItem />} />
+
+                <Route path="financial-dashboard/" element={<FinancialDashboard />} />
+                <Route path="reports/" element={<ReportsPage />} />
               </Route>
 
               {/* Rutas solo para admisión */}
