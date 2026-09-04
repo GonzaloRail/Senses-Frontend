@@ -57,6 +57,8 @@ import { AdminExpensesPage } from "@/features/accounting/pages/AdminExpensesPage
 import { IngresosList, CreateIngreso, IncomeReportByPsychologist } from "@/features/ingresos";
 import { FinancialDashboard } from "@/features/financial-dashboard/pages/FinancialDashboard";
 import { ReportsPage } from "@/features/reports/pages/ReportsPage";
+import { AppointmentNotificationsPage } from "@/features/appointment-notifications/pages/AppointmentNotificationsPage";
+import { AppointmentConfirmationPage } from "@/features/appointment-notifications/pages/AppointmentConfirmationPage";
 
 // import { CreateLocation } from "@/features/locations/pages/CreateLocation";
 
@@ -101,6 +103,7 @@ export const AppRouter = () => {
       </Route>
 
       <Route path="/access-denied" element={<AccessDenied />} />
+      <Route path="/confirmar-cita/:token" element={<AppointmentConfirmationPage />} />
 
       {accessToken ? (
         !roleNameSelected ? (
@@ -220,6 +223,7 @@ export const AppRouter = () => {
                   <ProtectedRoute allowedRoles={["ADMIN", "ADMISSION"]} />
                 }
               >
+                <Route path="appointment-notifications" element={<AppointmentNotificationsPage />} />
                 <Route
                   path="schedules/psychologist/:id"
                   element={<PsychologistSchedule />}
