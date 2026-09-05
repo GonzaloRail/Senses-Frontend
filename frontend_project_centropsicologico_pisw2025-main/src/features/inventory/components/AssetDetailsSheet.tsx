@@ -5,23 +5,32 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import type { Asset } from "../api/mockAssetApi";
+import type { InventoryItem, InventoryCategory } from "../api/inventoryApi";
 import { Separator } from "@/components/ui/separator";
 
 interface AssetDetailsSheetProps {
-  asset: Asset | null;
+  asset: InventoryItem | null;
+  categories: InventoryCategory[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function AssetDetailsSheet({ asset, open, onOpenChange }: AssetDetailsSheetProps) {
+export function AssetDetailsSheet({ asset, categories, open, onOpenChange }: AssetDetailsSheetProps) {
   if (!asset) return null;
+
+  const categoryName = categories.find(c => c.id === asset.categoryId)?.name || "Desconocida";
+  
+  const situationMap = {
+    OPERATIVE: "Operativo",
+    MAINTENANCE: "En Mantenimiento",
+    DECOMMISSIONED: "Dado de Baja"
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-md overflow-y-auto">
         <SheetHeader className="pb-4">
-          <SheetTitle className="text-xl">{asset.denominacion}</SheetTitle>
+          <SheetTitle className="text-xl">{asset.name}</SheetTitle>
           <SheetDescription>
             Detalles completos del activo registrado.
           </SheetDescription>
@@ -33,19 +42,15 @@ export function AssetDetailsSheet({ asset, open, onOpenChange }: AssetDetailsShe
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Categoría</p>
-                <p className="font-medium">{asset.categoria}</p>
+                <p className="font-medium">{categoryName}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Situación</p>
-                <p className="font-medium">{asset.situacion}</p>
+                <p className="font-medium">{situationMap[asset.situation]}</p>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Origen</p>
-                <p className="font-medium">{asset.origenAdquisicion}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Detalle Origen</p>
-                <p className="font-medium">{asset.detalleOrigen || "-"}</p>
+              <div className="col-span-2">
+                <p className="text-sm text-muted-foreground">Nro. Factura / Origen</p>
+                <p className="font-medium">{asset.invoiceNumber || "-"}</p>
               </div>
             </div>
           </div>
@@ -57,11 +62,11 @@ export function AssetDetailsSheet({ asset, open, onOpenChange }: AssetDetailsShe
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Marca</p>
-                <p className="font-medium">{asset.marca || "No especifica"}</p>
+                <p className="font-medium">{asset.brand || "No especifica"}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Modelo</p>
-                <p className="font-medium">{asset.modelo || "No especifica"}</p>
+                <p className="font-medium">{asset.model || "No especifica"}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Color</p>
@@ -69,7 +74,15 @@ export function AssetDetailsSheet({ asset, open, onOpenChange }: AssetDetailsShe
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Serie</p>
-                <p className="font-medium">{asset.serie || "No especifica"}</p>
+                <p className="font-medium">{asset.serialNumber || "No especifica"}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-sm text-muted-foreground">Dimensiones</p>
+                <p className="font-medium">{asset.dimensions || "No especifica"}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-sm text-muted-foreground">Detalles / Descripción</p>
+                <p className="font-medium">{asset.description || "No especifica"}</p>
               </div>
             </div>
           </div>
@@ -81,26 +94,28 @@ export function AssetDetailsSheet({ asset, open, onOpenChange }: AssetDetailsShe
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <p className="text-sm text-muted-foreground">Cantidad</p>
-                <p className="font-medium">{asset.cantidad}</p>
+                <p className="font-medium">{asset.quantity}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Precio Uni.</p>
-                <p className="font-medium">S/ {asset.precioUnitario.toFixed(2)}</p>
+                <p className="font-medium">S/ {asset.unitPrice ? asset.unitPrice.toFixed(2) : "0.00"}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total</p>
-                <p className="font-semibold text-primary">S/ {asset.total.toFixed(2)}</p>
+                <p className="font-semibold text-primary">
+                  S/ {asset.totalPrice ? asset.totalPrice.toFixed(2) : ((asset.unitPrice || 0) * asset.quantity).toFixed(2)}
+                </p>
               </div>
             </div>
           </div>
           
-          {asset.imagenUrl && (
+          {asset.imageUrl && (
             <>
               <Separator />
               <div className="space-y-4">
                 <h4 className="text-sm font-semibold uppercase text-muted-foreground">Imagen</h4>
                 <div className="rounded-md border p-2 bg-muted/20">
-                  <img src={asset.imagenUrl} alt={asset.denominacion} className="w-full h-auto object-contain rounded" />
+                  <img src={asset.imageUrl} alt={asset.name} className="w-full h-auto object-contain rounded" />
                 </div>
               </div>
             </>

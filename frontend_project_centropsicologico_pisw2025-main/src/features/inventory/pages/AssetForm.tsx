@@ -7,50 +7,62 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { createMockAsset } from "../api/mockAssetApi";
-import type { AssetOrigin, AssetCategory, AssetStatus } from "../api/mockAssetApi";
-import { Save, ArrowLeft } from "lucide-react";
-
-interface FormData {
-  origenAdquisicion: AssetOrigin;
-  detalleOrigen: string;
-  denominacion: string;
-  marca: string;
-  modelo: string;
-  categoria: AssetCategory;
-  color: string;
-  serie: string;
-  cantidad: number;
-  precioUnitario: number;
-  situacion: AssetStatus;
-  imagenUrl: string;
-}
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { createInventoryItem, getCategories, createCategory, uploadInventoryImage } from "../api/inventoryApi";
+import type { InventoryCategory, CreateInventoryItemPayload, InventorySituation } from "../api/inventoryApi";
+import { Save, ArrowLeft, Plus, Image as ImageIcon } from "lucide-react";
 
 export const AssetForm = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [total, setTotal] = useState(0);
+  
+  // Create Category Modal State
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryDesc, setNewCategoryDesc] = useState("");
+  const [creatingCategory, setCreatingCategory] = useState(false);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
+  // Image Upload State
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<CreateInventoryItemPayload>({
     defaultValues: {
-      origenAdquisicion: "Compra Factura",
-      categoria: "Equipos",
-      situacion: "Operativo",
-      cantidad: 1,
-      precioUnitario: 0,
-      detalleOrigen: "",
-      denominacion: "",
-      marca: "",
-      modelo: "",
+      categoryId: "",
+      situation: "OPERATIVE",
+      quantity: 1,
+      unitPrice: 0,
+      invoiceNumber: "",
+      name: "",
+      brand: "",
+      model: "",
       color: "",
-      serie: "",
-      imagenUrl: ""
+      serialNumber: "",
+      dimensions: "",
+      description: "",
+      imageUrl: ""
     }
   });
 
-  const cantidad = watch("cantidad");
-  const precioUnitario = watch("precioUnitario");
-  const origenAdquisicion = watch("origenAdquisicion");
+  const loadCategories = async () => {
+    try {
+      const cats = await getCategories();
+      setCategories(cats);
+    } catch (error) {
+      console.error("Error loading categories:", error);
+    }
+  };
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  const cantidad = watch("quantity");
+  const precioUnitario = watch("unitPrice");
+  const categoryId = watch("categoryId");
+  const situation = watch("situation");
 
   useEffect(() => {
     const qty = Number(cantidad) || 0;
@@ -58,15 +70,54 @@ export const AssetForm = () => {
     setTotal(qty * price);
   }, [cantidad, precioUnitario]);
 
-  const onSubmit = async (data: FormData) => {
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    setCreatingCategory(true);
+    try {
+      const newCat = await createCategory({ name: newCategoryName, description: newCategoryDesc });
+      setCategories([...categories, newCat]);
+      setValue("categoryId", newCat.id);
+      setIsCategoryModalOpen(false);
+      setNewCategoryName("");
+      setNewCategoryDesc("");
+    } catch (error) {
+      console.error("Error creating category:", error);
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const onSubmit = async (data: CreateInventoryItemPayload) => {
     setLoading(true);
-    await createMockAsset({
-      ...data,
-      cantidad: Number(data.cantidad),
-      precioUnitario: Number(data.precioUnitario),
-    });
-    setLoading(false);
-    navigate("/inventory");
+    try {
+      let finalImageUrl = data.imageUrl;
+
+      // If user selected a local file, upload it first
+      if (imageFile) {
+        const uploadResult = await uploadInventoryImage(imageFile);
+        finalImageUrl = uploadResult.url;
+      }
+
+      await createInventoryItem({
+        ...data,
+        quantity: Number(data.quantity),
+        unitPrice: Number(data.unitPrice),
+        imageUrl: finalImageUrl,
+      });
+      navigate("/inventory");
+    } catch (error) {
+      console.error("Error saving item:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -86,96 +137,104 @@ export const AssetForm = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>1. Origen de Adquisición</CardTitle>
-              <CardDescription>Indique de dónde proviene el activo fijo.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label>Origen de Adquisición *</Label>
-                <Select 
-                  value={origenAdquisicion} 
-                  onValueChange={(val) => setValue("origenAdquisicion", val as AssetOrigin)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccione el origen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Compra Factura">Compra con Factura</SelectItem>
-                    <SelectItem value="Compra Boleta">Compra con Boleta</SelectItem>
-                    <SelectItem value="Aporte Socio">Aporte de Socio</SelectItem>
-                    <SelectItem value="Otros">Otros</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>
-                  {origenAdquisicion === "Aporte Socio" ? "Nombre del Socio / Detalle *" : "Nro de Factura / Boleta / Detalle *"}
-                </Label>
-                <Input {...register("detalleOrigen", { required: true })} placeholder="Ingrese detalle" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>2. Información Principal</CardTitle>
-              <CardDescription>Datos descriptivos del activo.</CardDescription>
+              <CardTitle>1. Información Principal</CardTitle>
+              <CardDescription>Datos descriptivos y de origen del activo.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2 md:col-span-2">
                 <Label>Denominación del Activo *</Label>
-                <Input {...register("denominacion", { required: true })} placeholder="Ej: Escritorio de Melamina, Silla Ergonómica..." />
+                <Input {...register("name", { required: true })} placeholder="Ej: Escritorio de Melamina, Silla Ergonómica..." />
               </div>
 
               <div className="space-y-2">
                 <Label>Categoría / Tipo *</Label>
-                <Select 
-                  value={watch("categoria")} 
-                  onValueChange={(val) => setValue("categoria", val as AssetCategory)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccione categoría" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Equipos">Equipos</SelectItem>
-                    <SelectItem value="Muebles">Muebles</SelectItem>
-                    <SelectItem value="Electrónicos">Electrónicos</SelectItem>
-                    <SelectItem value="Otros">Otros</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex gap-2">
+                  <Select 
+                    value={categoryId} 
+                    onValueChange={(val) => setValue("categoryId", val)}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Seleccione categoría" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Add Category Dialog */}
+                  <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
+                    <DialogTrigger asChild>
+                      <Button type="button" variant="outline" size="icon">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Añadir Nueva Categoría</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label>Nombre de la Categoría</Label>
+                          <Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="Ej: Herramientas" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Descripción (Opcional)</Label>
+                          <Input value={newCategoryDesc} onChange={e => setNewCategoryDesc(e.target.value)} placeholder="Breve descripción" />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setIsCategoryModalOpen(false)}>Cancelar</Button>
+                        <Button type="button" onClick={handleCreateCategory} disabled={!newCategoryName || creatingCategory}>
+                          {creatingCategory ? "Guardando..." : "Guardar Categoría"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label>Situación / Estado *</Label>
                 <Select 
-                  value={watch("situacion")} 
-                  onValueChange={(val) => setValue("situacion", val as AssetStatus)}
+                  value={situation} 
+                  onValueChange={(val) => setValue("situation", val as InventorySituation)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccione estado" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Operativo">Operativo (En condición óptima)</SelectItem>
-                    <SelectItem value="Mantenimiento">Mantenimiento</SelectItem>
+                    <SelectItem value="OPERATIVE">Operativo (En condición óptima)</SelectItem>
+                    <SelectItem value="MAINTENANCE">Mantenimiento</SelectItem>
+                    <SelectItem value="DECOMMISSIONED">Dado de Baja</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Factura / Comprobante de Origen</Label>
+                <Input {...register("invoiceNumber")} placeholder="Ej: F001-00123" />
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>3. Características Físicas</CardTitle>
+              <CardTitle>2. Características Adicionales</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label>Marca</Label>
-                <Input {...register("marca")} placeholder="Opcional" />
+                <Input {...register("brand")} placeholder="Opcional" />
               </div>
               <div className="space-y-2">
                 <Label>Modelo</Label>
-                <Input {...register("modelo")} placeholder="Opcional" />
+                <Input {...register("model")} placeholder="Opcional" />
+              </div>
+              <div className="space-y-2">
+                <Label>Dimensiones</Label>
+                <Input {...register("dimensions")} placeholder="Ej: 120x60x75 cm" />
               </div>
               <div className="space-y-2">
                 <Label>Color</Label>
@@ -183,28 +242,43 @@ export const AssetForm = () => {
               </div>
               <div className="space-y-2">
                 <Label>Número de Serie</Label>
-                <Input {...register("serie")} placeholder="Opcional" />
+                <Input {...register("serialNumber")} placeholder="Opcional" />
+              </div>
+              <div className="space-y-2">
+                <Label>Detalles / Descripción</Label>
+                <Input {...register("description")} placeholder="Ej: Con 4 patas, madera caoba" />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label>URL de Imagen</Label>
-                <Input {...register("imagenUrl")} placeholder="Opcional - Link de la foto del activo" />
+                <Label>Imagen del Activo</Label>
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center gap-4">
+                    <Input type="file" accept="image/*" onChange={handleImageChange} className="max-w-sm" />
+                    <span className="text-sm text-muted-foreground">O ingrese una URL directamente:</span>
+                    <Input {...register("imageUrl")} placeholder="https://..." className="flex-1" />
+                  </div>
+                  {imagePreview && (
+                    <div className="mt-2 relative w-32 h-32 border rounded-md overflow-hidden bg-muted flex items-center justify-center">
+                      <img src={imagePreview} alt="Vista previa" className="object-cover w-full h-full" />
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>4. Valorización</CardTitle>
+              <CardTitle>3. Valorización</CardTitle>
               <CardDescription>Cálculo automático según cantidad y precio.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <Label>Cantidad *</Label>
-                <Input type="number" min="1" {...register("cantidad", { required: true, min: 1 })} />
+                <Input type="number" min="1" {...register("quantity", { required: true, min: 1 })} />
               </div>
               <div className="space-y-2">
                 <Label>Precio Unitario (S/) *</Label>
-                <Input type="number" step="0.01" min="0" {...register("precioUnitario", { required: true, min: 0 })} />
+                <Input type="number" step="0.01" min="0" {...register("unitPrice", { min: 0 })} />
               </div>
               <div className="space-y-2">
                 <Label>Valor Total (S/)</Label>

@@ -3,7 +3,6 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useNavigate } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SiteHeader } from "@/shared/components/SiteHeader";
 import { DataTable } from "@/shared/components/DataTable";
 import { 
@@ -15,34 +14,48 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, FileSpreadsheet, FileText } from "lucide-react";
-import { getMockAssets, deleteMockAsset } from "../api/mockAssetApi";
-import type { Asset } from "../api/mockAssetApi";
+import { getInventoryItems, deleteInventoryItem, getCategories } from "../api/inventoryApi";
+import type { InventoryItem, InventoryCategory } from "../api/inventoryApi";
+import { exportInventoryExcel, exportInventoryPdf } from "../utils/exportInventory";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AssetDetailsSheet } from "../components/AssetDetailsSheet";
 
 export const InventoryPage = () => {
   const navigate = useNavigate();
-  const [data, setData] = useState<Asset[]>([]);
+  const [data, setData] = useState<InventoryItem[]>([]);
+  const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [selectedAsset, setSelectedAsset] = useState<InventoryItem | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   
   // Filters
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [originFilter, setOriginFilter] = useState<string>("all");
 
   const loadData = async () => {
     setLoading(true);
-    const mockData = await getMockAssets();
-    setData(mockData);
-    setLoading(false);
+    try {
+      const [itemsData, categoriesData] = await Promise.all([
+        getInventoryItems(),
+        getCategories()
+      ]);
+      setData(itemsData);
+      setCategories(categoriesData);
+    } catch (error) {
+      console.error("Error loading inventory:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDarDeBaja = async (id: string) => {
     if (confirm("¿Estás seguro de que deseas dar de baja este activo?")) {
-      await deleteMockAsset(id);
-      loadData(); // Reload table
+      try {
+        await deleteInventoryItem(id);
+        loadData(); // Reload table
+      } catch (error) {
+        console.error("Error deleting asset:", error);
+      }
     }
   };
 
@@ -51,42 +64,47 @@ export const InventoryPage = () => {
   }, []);
 
   const filteredData = data.filter((asset) => {
-    if (categoryFilter !== "all" && asset.categoria !== categoryFilter) return false;
-    if (statusFilter !== "all" && asset.situacion !== statusFilter) return false;
-    if (originFilter !== "all" && asset.origenAdquisicion !== originFilter) return false;
+    if (categoryFilter !== "all" && asset.categoryId !== categoryFilter) return false;
+    if (statusFilter !== "all" && asset.situation !== statusFilter) return false;
+    // Don't show DECOMMISSIONED by default unless specifically asked for? 
+    // The requirement says "mantener el registro visible". So we show it.
     return true;
   });
 
-  const columns: ColumnDef<Asset>[] = [
+  const columns: ColumnDef<InventoryItem>[] = [
     {
-      accessorKey: "denominacion",
+      accessorKey: "name",
       header: "Denominación",
-      cell: ({ row }) => <div className="font-medium">{row.original.denominacion}</div>,
+      cell: ({ row }) => <div className="font-medium">{row.original.name}</div>,
     },
     {
-      accessorKey: "categoria",
+      accessorKey: "categoryId",
       header: "Categoría",
+      cell: ({ row }) => {
+        const cat = categories.find(c => c.id === row.original.categoryId);
+        return <span>{cat ? cat.name : "Desconocida"}</span>;
+      }
     },
     {
-      accessorKey: "origenAdquisicion",
-      header: "Origen",
-      cell: ({ row }) => (
-        <div className="flex flex-col">
-          <span>{row.original.origenAdquisicion}</span>
-          <span className="text-xs text-muted-foreground">{row.original.detalleOrigen}</span>
-        </div>
-      ),
+      accessorKey: "invoiceNumber",
+      header: "Factura",
+      cell: ({ row }) => <span>{row.original.invoiceNumber || "N/A"}</span>,
     },
     {
-      accessorKey: "cantidad",
+      accessorKey: "quantity",
       header: "Cant.",
     },
     {
-      accessorKey: "situacion",
+      accessorKey: "situation",
       header: "Situación",
       cell: ({ row }) => {
-        const isOperativo = row.original.situacion === "Operativo";
-        const isMantenimiento = row.original.situacion === "Mantenimiento";
+        const isOperativo = row.original.situation === "OPERATIVE";
+        const isMantenimiento = row.original.situation === "MAINTENANCE";
+        
+        let label = "Dado de Baja";
+        if (isOperativo) label = "Operativo";
+        if (isMantenimiento) label = "Mantenimiento";
+
         return (
           <Badge
             variant="default"
@@ -96,7 +114,7 @@ export const InventoryPage = () => {
               "bg-red-600 hover:bg-red-700"
             }`}
           >
-            {row.original.situacion}
+            {label}
           </Badge>
         );
       },
@@ -105,6 +123,7 @@ export const InventoryPage = () => {
       id: "actions",
       cell: ({ row }) => {
         const asset = row.original;
+        const isDadoDeBaja = asset.situation === "DECOMMISSIONED";
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -124,13 +143,17 @@ export const InventoryPage = () => {
               <DropdownMenuItem onClick={() => navigate(`/inventory/${asset.id}/edit`)}>
                 Editar
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                className="text-red-600 focus:text-red-600"
-                onClick={() => handleDarDeBaja(asset.id)}
-              >
-                Dar de Baja
-              </DropdownMenuItem>
+              {!isDadoDeBaja && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    className="text-red-600 focus:text-red-600"
+                    onClick={() => handleDarDeBaja(asset.id)}
+                  >
+                    Dar de Baja
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         );
@@ -161,9 +184,9 @@ export const InventoryPage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas</SelectItem>
-                  <SelectItem value="Equipos">Equipos</SelectItem>
-                  <SelectItem value="Muebles">Muebles</SelectItem>
-                  <SelectItem value="Electrónicos">Electrónicos</SelectItem>
+                  {categories.map(cat => (
+                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -176,33 +199,20 @@ export const InventoryPage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas</SelectItem>
-                  <SelectItem value="Operativo">Operativo</SelectItem>
-                  <SelectItem value="Mantenimiento">Mantenimiento</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <span className="text-sm font-medium">Origen</span>
-              <Select value={originFilter} onValueChange={setOriginFilter}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="Compra Factura">Compra Factura</SelectItem>
-                  <SelectItem value="Aporte Socio">Aporte Socio</SelectItem>
+                  <SelectItem value="OPERATIVE">Operativo</SelectItem>
+                  <SelectItem value="MAINTENANCE">Mantenimiento</SelectItem>
+                  <SelectItem value="DECOMMISSIONED">Dado de Baja</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
           <div className="flex gap-2">
-            <Button variant="outline" className="flex gap-2">
+            <Button variant="outline" className="flex gap-2" onClick={() => exportInventoryExcel(filteredData, categories, "Inventario_Activos")}>
               <FileSpreadsheet className="h-4 w-4 text-green-600" />
               Excel
             </Button>
-            <Button variant="outline" className="flex gap-2">
+            <Button variant="outline" className="flex gap-2" onClick={() => exportInventoryPdf(filteredData, categories, "Inventario_Activos")}>
               <FileText className="h-4 w-4 text-red-600" />
               PDF
             </Button>
@@ -230,6 +240,7 @@ export const InventoryPage = () => {
         asset={selectedAsset} 
         open={isDetailsOpen} 
         onOpenChange={setIsDetailsOpen} 
+        categories={categories}
       />
     </>
   );
