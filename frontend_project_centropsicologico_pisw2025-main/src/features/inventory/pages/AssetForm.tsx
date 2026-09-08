@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { createInventoryItem, getCategories, createCategory, uploadInventoryImage } from "../api/inventoryApi";
 import type { InventoryCategory, CreateInventoryItemPayload, InventorySituation } from "../api/inventoryApi";
-import { Save, ArrowLeft, Plus, Image as ImageIcon } from "lucide-react";
+import { Save, ArrowLeft, Plus } from "lucide-react";
 
 export const AssetForm = () => {
   const navigate = useNavigate();
@@ -28,7 +28,7 @@ export const AssetForm = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<CreateInventoryItemPayload>({
+  const { register, handleSubmit, watch, setValue } = useForm<CreateInventoryItemPayload>({
     defaultValues: {
       categoryId: "",
       situation: "OPERATIVE",
