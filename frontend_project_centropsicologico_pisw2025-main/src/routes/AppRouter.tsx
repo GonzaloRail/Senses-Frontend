@@ -25,8 +25,8 @@ import { Dashboard } from "@/features/dashboard/pages/Dashboard";
 import { SchedulesList } from "@/features/schedules/pages/SchedulesList";
 import { PsychologistSchedule } from "@/features/schedules/pages/PsychologistSchedule";
 import { OfficeSchedule } from "@/features/schedules/pages/OfficeSchedule";
-import { ItemsList } from "@/features/inventory/pages/ItemsList";
-import { CreateItem } from "@/features/inventory/pages/CreateItem";
+import { InventoryPage } from "@/features/inventory/pages/InventoryPage";
+import { AssetForm } from "@/features/inventory/pages/AssetForm";
 import { ItemInformation } from "@/features/inventory/pages/ItemInformation";
 import { AppointmentsList } from "@/features/appointments/pages/AppointmentsList";
 import { CreateAppointment } from "@/features/appointments/pages/CreateAppointment";
@@ -178,9 +178,9 @@ export const AppRouter = () => {
                 <Route path="location/:id" element={<LocationInformation />} />
                 <Route path="locations/create" element={<CreateLocation />} />
 
-                <Route path="inventory/" element={<ItemsList />} />
+                <Route path="inventory/" element={<InventoryPage />} />
                 <Route path="inventory/:id" element={<ItemInformation />} />
-                <Route path="inventory/create" element={<CreateItem />} />
+                <Route path="inventory/create" element={<AssetForm />} />
 
                 <Route path="financial-dashboard/" element={<FinancialDashboard />} />
                 <Route path="reports/" element={<ReportsPage />} />
