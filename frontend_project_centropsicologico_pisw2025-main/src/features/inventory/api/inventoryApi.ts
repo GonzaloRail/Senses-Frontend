@@ -86,8 +86,8 @@ export const createCategory = async (payload: CreateCategoryPayload): Promise<In
 
 // Inventory Items
 export const getInventoryItems = async (params?: any): Promise<InventoryItem[]> => {
-  const { data } = await api.get<InventoryItem[]>("/api/v1/inventory/items", { params });
-  return data;
+  const { data } = await api.get<{items: InventoryItem[]}>("/api/v1/inventory/items", { params });
+  return data.items || [];
 };
 
 export const getInventoryItemById = async (id: string): Promise<InventoryItem> => {
