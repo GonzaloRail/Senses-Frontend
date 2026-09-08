@@ -3,7 +3,7 @@ import { FaUser, FaCalendarAlt, FaMoneyBillWave, FaChartPie, FaFileAlt, FaPercen
 import { GiHealthNormal } from "react-icons/gi";
 import { PiOfficeChairBold } from "react-icons/pi";
 import { IoIosDocument } from "react-icons/io";
-import { MdInventory, MdAnnouncement } from "react-icons/md";
+import { MdInventory, MdAnnouncement, MdNotificationsActive } from "react-icons/md";
 import { FaUserCog } from "react-icons/fa";
 import { TbReceipt } from "react-icons/tb";
 
@@ -85,6 +85,12 @@ export const getNavMainItemsByRole = (role: string) => {
           title: "Auditoría Contable",
           icon: FaClipboardList,
           url: "/audit-logs",
+      
+        },
+        {
+          title: "Recordatorios de citas",
+          icon: MdNotificationsActive,
+          url: "/appointment-notifications",
         }
       ];
     case "ADMISSION":
@@ -119,6 +125,11 @@ export const getNavMainItemsByRole = (role: string) => {
           title: "Registro de ingresos",
           icon: TbReceipt,
           url: "/ingresos",
+        },
+        {
+          title: "Recordatorios de citas",
+          icon: MdNotificationsActive,
+          url: "/appointment-notifications",
         }
       ];
     case "PSYCHOLOGIST":

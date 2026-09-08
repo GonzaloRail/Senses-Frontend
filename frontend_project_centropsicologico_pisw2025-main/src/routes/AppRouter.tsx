@@ -59,13 +59,16 @@ import { FinancialDashboard } from "@/features/financial-dashboard/pages/Financi
 import { ReportsPage } from "@/features/reports/pages/ReportsPage";
 import { CommissionsPage } from "@/features/commissions";
 import { AuditPage } from "@/features/audit/pages/AuditPage";
+import { AppointmentNotificationsPage } from "@/features/appointment-notifications/pages/AppointmentNotificationsPage";
+import { AppointmentConfirmationPage } from "@/features/appointment-notifications/pages/AppointmentConfirmationPage";
+
 // import { CreateLocation } from "@/features/locations/pages/CreateLocation";
 
 export const AppRouter = () => {
   const accessToken = useAuth((state) => state.accessToken);
   const roleNameSelected = useAuth((state) => state.roleSelected);
   const isAuthBootstrapped = useAuth((state) => state.isAuthBootstrapped);
-  const user = useAuth((state) => state.user);
+  const user = useAuth((state) => state.user);       
   console.log("userZustand", user);
   const { Spinner } = useSpinner({ initialLoading: true });
   useBootstrapAuth();
@@ -102,6 +105,7 @@ export const AppRouter = () => {
       </Route>
 
       <Route path="/access-denied" element={<AccessDenied />} />
+      <Route path="/confirmar-cita/:token" element={<AppointmentConfirmationPage />} />
 
       {accessToken ? (
         !roleNameSelected ? (
@@ -223,6 +227,7 @@ export const AppRouter = () => {
                   <ProtectedRoute allowedRoles={["ADMIN", "ADMISSION"]} />
                 }
               >
+                <Route path="appointment-notifications" element={<AppointmentNotificationsPage />} />
                 <Route
                   path="schedules/psychologist/:id"
                   element={<PsychologistSchedule />}
