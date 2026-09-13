@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx";
 import type { InventoryItem, InventoryCategory } from "../api/inventoryApi";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 function formatDate(iso: string) {
   if (!iso) return "";
@@ -29,7 +29,7 @@ export function exportInventoryExcel(data: InventoryItem[], categories: Inventor
     "Detalles": item.description || "NO ESPECIFICA",
     "Cant.": item.quantity,
     "Precio Uni.": item.unitPrice || 0,
-    "Total": item.totalPrice || ((item.unitPrice || 0) * item.quantity),
+    "Total": item.totalPrice || (Number(item.unitPrice || 0) * item.quantity),
     "SITUACIÓN": situationMap[item.situation],
     "Fecha de Registro": formatDate(item.createdAt)
   }));
@@ -59,11 +59,11 @@ export function exportInventoryPdf(data: InventoryItem[], categories: InventoryC
     categories.find(c => c.id === item.categoryId)?.name || "N/A",
     item.quantity,
     item.unitPrice || 0,
-    item.totalPrice || ((item.unitPrice || 0) * item.quantity),
+    item.totalPrice || (Number(item.unitPrice || 0) * item.quantity),
     situationMap[item.situation]
   ]);
 
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: 25,
     head: [["N°", "Factura", "Denominación", "Categoría", "Cant.", "Precio U.", "Total", "Situación"]],
     body: tableData,
