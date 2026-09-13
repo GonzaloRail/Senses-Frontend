@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { useForm } from "react-hook-form";
 import { SiteHeader } from "@/shared/components/SiteHeader";
 import { Button } from "@/components/ui/button";
@@ -8,13 +8,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { createInventoryItem, getCategories, createCategory, uploadInventoryImage } from "../api/inventoryApi";
+import { createInventoryItem, getCategories, createCategory, uploadInventoryImage, getInventoryItemById, updateInventoryItem } from "../api/inventoryApi";
 import type { InventoryCategory, CreateInventoryItemPayload, InventorySituation } from "../api/inventoryApi";
-import { Save, ArrowLeft, Plus, Image as ImageIcon } from "lucide-react";
+import { Save, ArrowLeft, Plus } from "lucide-react";
 
 export const AssetForm = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = Boolean(id);
+  
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(isEditMode);
   const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [total, setTotal] = useState(0);
   
@@ -28,7 +32,7 @@ export const AssetForm = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<CreateInventoryItemPayload>({
+  const { register, handleSubmit, watch, setValue, reset } = useForm<CreateInventoryItemPayload>({
     defaultValues: {
       categoryId: "",
       situation: "OPERATIVE",
@@ -55,9 +59,40 @@ export const AssetForm = () => {
     }
   };
 
+  const loadItem = async (itemId: string) => {
+    try {
+      const item = await getInventoryItemById(itemId);
+      reset({
+        categoryId: item.categoryId,
+        situation: item.situation,
+        quantity: item.quantity,
+        unitPrice: Number(item.unitPrice || 0),
+        invoiceNumber: item.invoiceNumber || "",
+        name: item.name,
+        brand: item.brand || "",
+        model: item.model || "",
+        color: item.color || "",
+        serialNumber: item.serialNumber || "",
+        dimensions: item.dimensions || "",
+        description: item.description || "",
+        imageUrl: item.imageUrl || ""
+      });
+      if (item.imageUrl) {
+        setImagePreview(item.imageUrl);
+      }
+    } catch (error) {
+      console.error("Error loading item:", error);
+    } finally {
+      setInitialLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadCategories();
-  }, []);
+    if (isEditMode && id) {
+      loadItem(id);
+    }
+  }, [id, isEditMode]);
 
   const cantidad = watch("quantity");
   const precioUnitario = watch("unitPrice");
@@ -106,12 +141,21 @@ export const AssetForm = () => {
         finalImageUrl = uploadResult.url;
       }
 
-      await createInventoryItem({
-        ...data,
-        quantity: Number(data.quantity),
-        unitPrice: Number(data.unitPrice),
-        imageUrl: finalImageUrl,
-      });
+      if (isEditMode && id) {
+        await updateInventoryItem(id, {
+          ...data,
+          quantity: Number(data.quantity),
+          unitPrice: Number(data.unitPrice),
+          imageUrl: finalImageUrl,
+        });
+      } else {
+        await createInventoryItem({
+          ...data,
+          quantity: Number(data.quantity),
+          unitPrice: Number(data.unitPrice),
+          imageUrl: finalImageUrl,
+        });
+      }
       navigate("/inventory");
     } catch (error) {
       console.error("Error saving item:", error);
@@ -120,9 +164,17 @@ export const AssetForm = () => {
     }
   };
 
+  if (initialLoading) {
+    return (
+      <div className="flex flex-1 items-center justify-center h-full">
+        <p className="text-muted-foreground">Cargando datos del activo...</p>
+      </div>
+    );
+  }
+
   return (
     <>
-      <SiteHeader title="Registrar Nuevo Activo" />
+      <SiteHeader title={isEditMode ? "Editar Activo" : "Registrar Nuevo Activo"} />
       <div className="flex flex-1 flex-col p-4 md:p-6">
         <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl mx-auto w-full space-y-6">
           
@@ -131,7 +183,7 @@ export const AssetForm = () => {
               <ArrowLeft className="mr-2 h-4 w-4" /> Volver al inventario
             </Button>
             <Button type="submit" disabled={loading} className="bg-primary text-primary-foreground">
-              {loading ? "Guardando..." : <><Save className="mr-2 h-4 w-4" /> Guardar Activo</>}
+              {loading ? "Guardando..." : <><Save className="mr-2 h-4 w-4" /> {isEditMode ? "Actualizar Activo" : "Guardar Activo"}</>}
             </Button>
           </div>
 

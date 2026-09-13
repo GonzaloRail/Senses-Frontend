@@ -177,6 +177,7 @@ export const AppRouter = () => {
                 <Route path="inventory/" element={<InventoryPage />} />
                 <Route path="inventory/:id" element={<ItemInformation />} />
                 <Route path="inventory/create" element={<AssetForm />} />
+                <Route path="inventory/:id/edit" element={<AssetForm />} />
 
                 <Route path="financial-dashboard/" element={<FinancialDashboard />} />
                 <Route path="reports/" element={<ReportsPage />} />

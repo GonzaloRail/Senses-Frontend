@@ -25,8 +25,8 @@ export interface InventoryItem {
   serialNumber?: string;
   quantity: number;
   imageUrl?: string;
-  unitPrice?: number;
-  totalPrice?: number;
+  unitPrice?: number | string;
+  totalPrice?: number | string;
   situation: InventorySituation;
   isActive: boolean;
   categoryId: string;
@@ -38,6 +38,11 @@ export interface InventoryItemHistory {
   id: string;
   inventoryItemId: string;
   userId: string;
+  user?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
   action: string;
   field?: string;
   oldValue?: string;
