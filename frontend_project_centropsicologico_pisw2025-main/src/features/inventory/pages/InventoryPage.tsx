@@ -135,7 +135,6 @@ export const InventoryPage = () => {
       id: "actions",
       cell: ({ row }) => {
         const asset = row.original;
-        const isDadoDeBaja = asset.situation === "DECOMMISSIONED";
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
