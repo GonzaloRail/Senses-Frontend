@@ -95,6 +95,11 @@ export const getInventoryItems = async (params?: any): Promise<InventoryItem[]> 
   return data.items || [];
 };
 
+export const getInactiveInventoryItems = async (params?: any): Promise<InventoryItem[]> => {
+  const { data } = await api.get<{items: InventoryItem[]}>("/api/v1/inventory/items/inactive", { params });
+  return data.items || [];
+};
+
 export const getInventoryItemById = async (id: string): Promise<InventoryItem> => {
   const { data } = await api.get<InventoryItem>(`/api/v1/inventory/items/${id}`);
   return data;
@@ -112,6 +117,10 @@ export const updateInventoryItem = async (id: string, payload: UpdateInventoryIt
 
 export const deleteInventoryItem = async (id: string): Promise<void> => {
   await api.delete(`/api/v1/inventory/items/${id}`);
+};
+
+export const reactivateInventoryItem = async (id: string): Promise<void> => {
+  await api.put(`/api/v1/inventory/items/${id}/reactivate`);
 };
 
 // History

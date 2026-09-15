@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, FileSpreadsheet, FileText } from "lucide-react";
-import { getInventoryItems, deleteInventoryItem, getCategories } from "../api/inventoryApi";
+import { getInventoryItems, deleteInventoryItem, getCategories, getInactiveInventoryItems, reactivateInventoryItem } from "../api/inventoryApi";
 import type { InventoryItem, InventoryCategory } from "../api/inventoryApi";
 import { exportInventoryExcel, exportInventoryPdf } from "../utils/exportInventory";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -31,12 +31,13 @@ export const InventoryPage = () => {
   // Filters
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [showInactive, setShowInactive] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const [itemsData, categoriesData] = await Promise.all([
-        getInventoryItems(),
+        showInactive ? getInactiveInventoryItems() : getInventoryItems(),
         getCategories()
       ]);
       setData(itemsData);
@@ -49,7 +50,7 @@ export const InventoryPage = () => {
   };
 
   const handleDarDeBaja = async (id: string) => {
-    if (confirm("¿Estás seguro de que deseas dar de baja este activo?")) {
+    if (confirm("¿Estás seguro de que deseas desactivar (dar de baja) este activo?")) {
       try {
         await deleteInventoryItem(id);
         loadData(); // Reload table
@@ -59,9 +60,20 @@ export const InventoryPage = () => {
     }
   };
 
+  const handleReactivar = async (id: string) => {
+    if (confirm("¿Estás seguro de que deseas reactivar este activo?")) {
+      try {
+        await reactivateInventoryItem(id);
+        loadData();
+      } catch (error) {
+        console.error("Error reactivating asset:", error);
+      }
+    }
+  };
+
   useEffect(() => {
     loadData();
-  }, []);
+  }, [showInactive]);
 
   const filteredData = data.filter((asset) => {
     if (categoryFilter !== "all" && asset.categoryId !== categoryFilter) return false;
@@ -140,17 +152,29 @@ export const InventoryPage = () => {
               }}>
                 Ver Detalles
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(`/inventory/${asset.id}/edit`)}>
-                Editar
-              </DropdownMenuItem>
-              {!isDadoDeBaja && (
+              {!showInactive && (
+                <DropdownMenuItem onClick={() => navigate(`/inventory/${asset.id}/edit`)}>
+                  Editar
+                </DropdownMenuItem>
+              )}
+              {!showInactive ? (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     className="text-red-600 focus:text-red-600"
                     onClick={() => handleDarDeBaja(asset.id)}
                   >
-                    Dar de Baja
+                    Desactivar (Dar de baja)
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    className="text-green-600 focus:text-green-600 font-medium"
+                    onClick={() => handleReactivar(asset.id)}
+                  >
+                    Reactivar Activo
                   </DropdownMenuItem>
                 </>
               )}
@@ -201,9 +225,28 @@ export const InventoryPage = () => {
                   <SelectItem value="all">Todas</SelectItem>
                   <SelectItem value="OPERATIVE">Operativo</SelectItem>
                   <SelectItem value="MAINTENANCE">Mantenimiento</SelectItem>
-                  <SelectItem value="DECOMMISSIONED">Dado de Baja</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            
+            <div className="flex flex-col gap-1.5 ml-0 sm:ml-4">
+              <span className="text-sm font-medium">Mostrar</span>
+              <div className="flex bg-muted/50 p-1 rounded-md border h-10">
+                <Button 
+                  variant={!showInactive ? "default" : "ghost"} 
+                  className="h-full text-sm px-4 py-0 shadow-none"
+                  onClick={() => setShowInactive(false)}
+                >
+                  Activos
+                </Button>
+                <Button 
+                  variant={showInactive ? "default" : "ghost"} 
+                  className="h-full text-sm px-4 py-0 shadow-none"
+                  onClick={() => setShowInactive(true)}
+                >
+                  Inactivos
+                </Button>
+              </div>
             </div>
           </div>
 
