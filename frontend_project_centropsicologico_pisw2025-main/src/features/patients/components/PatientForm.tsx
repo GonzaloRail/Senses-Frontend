@@ -33,6 +33,7 @@ import {
   defaultComplementaryValues,
   extractComplementaryFormValues,
 } from "../utils/patientComplementaryFields";
+import { useAuth } from "@/store/auth/auth.store";
 
 export type FormMode = "view" | "edit" | "create";
 
@@ -260,6 +261,8 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
   const { data: districtsByProvinceId } = useDistrictsByProvinceIdQuery(
     provinceId ?? ""
   );
+  const roleSelected = useAuth((state) => state.roleSelected);
+  const isPsychologist = roleSelected === "PSYCHOLOGIST";
 
   const createPatient = useCreatePatient();
   const updatePatient = useUpdatePatient();
@@ -902,11 +905,12 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
                         </div>
                       </AccordionSection>
 
-                      <AccordionSection
-                        title="Información Comercial y Marketing"
-                        isOpen={openSections.marketing}
-                        onToggle={() => toggleSection("marketing")}
-                      >
+                      {!isPsychologist && (
+                        <AccordionSection
+                          title="Información Comercial y Marketing"
+                          isOpen={openSections.marketing}
+                          onToggle={() => toggleSection("marketing")}
+                        >
                         <div>
                           <p className="mb-3 text-sm font-semibold text-[#0B2035]">
                             ¿Cómo nos encontró?
@@ -971,14 +975,16 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
                             }
                             options={yesNoOptions}
                           />
-                        </div>
-                      </AccordionSection>
+                          </div>
+                        </AccordionSection>
+                      )}
 
-                      <AccordionSection
-                        title="Información Socioeconómica"
-                        isOpen={openSections.socioeconomic}
-                        onToggle={() => toggleSection("socioeconomic")}
-                      >
+                      {!isPsychologist && (
+                        <AccordionSection
+                          title="Información Socioeconómica"
+                          isOpen={openSections.socioeconomic}
+                          onToggle={() => toggleSection("socioeconomic")}
+                        >
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                           <SelectWithHelper
                             id="employmentStatus"
@@ -1047,6 +1053,7 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
                           </div>
                         </div>
                       </AccordionSection>
+                      )}
 
                       <AccordionSection
                         title="Consentimiento"
