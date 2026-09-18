@@ -11,12 +11,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useSelectRoleAndLocationMutation } from "../hooks";
 
-const rolesName = {
+const rolesName: Record<string, string> = {
   ADMISSION: "Admisión",
   PSYCHOLOGIST: "Psicólogo",
   ADMIN: "Gerente",
   INTERNAL: "Interno",
   AUDITOR: "Auditor",
+  HR: "Recursos Humanos",
 };
 
 export const SelectRolePage = () => {
@@ -60,11 +61,23 @@ export const SelectRolePage = () => {
     name: rolesName[role.role.name],
   })).filter(role => role.name !== rolesName.INTERNAL);
   
+  // TRUCO PARA DEMO (HU-016): Inyectar Rol Recursos Humanos temporalmente
+  userRoles.push({ id: "fake-hr-id", name: "Recursos Humanos" });
+
+  
   // Verificar si ambos campos están seleccionados
   const isFormComplete = selectedRole;
 
   const handleEnter = () => {
     if (isFormComplete) {
+      // TRUCO PARA DEMO (HU-016)
+      if (selectedRole === "fake-hr-id") {
+        console.log("Rol seleccionado: RRHH (Mock)");
+        useAuth.getState().setAuth({ roleSelected: "HR" as any });
+        navigate("/");
+        return;
+      }
+
       const data = {
         roleId: selectedRole,
       };

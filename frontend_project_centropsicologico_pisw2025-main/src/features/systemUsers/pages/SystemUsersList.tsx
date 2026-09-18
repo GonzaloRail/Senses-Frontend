@@ -9,12 +9,13 @@ import { queryClient } from "@/lib/queryClient";
 import { getAllUsersPaginatedApi } from "../api/systemUsersApi";
 import type { UsersPaginatedResponse } from "@/shared/interfaces/apiResponses/getAllUsersPaginatedResponse";
 
-const rolesName = {
+const rolesName: Record<string, string> = {
   ADMISSION: "Admisión",
   PSYCHOLOGIST: "Psicólogo",
   ADMIN: "Gerente",
   INTERNAL: "Interno",
   AUDITOR: "Auditor",
+  HR: "Recursos Humanos",
 };
 
 export const SystemUsersList = () => {

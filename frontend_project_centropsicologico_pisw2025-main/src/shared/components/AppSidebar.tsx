@@ -17,6 +17,7 @@ const rolesName = {
   ADMIN: "Gerente",
   INTERNAL: "Interno",
   AUDITOR: "Auditor",
+  HR: "Recursos Humanos",
 };
 export const AppSidebar = ({
   ...props
