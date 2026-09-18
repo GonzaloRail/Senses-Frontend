@@ -22,6 +22,11 @@ export const ClinicalHistoriesList = () => {
       cell: ({ row }) => <div>{row.original.displayInt}</div>,
     },
     {
+      accessorKey: "dni",
+      header: "DNI",
+      cell: ({ row }) => <div>{row.original.dni}</div>,
+    },
+    {
       accessorKey: "patientName",
       header: "Paciente",
       cell: ({ row }) => <div>{row.original.patientName}</div>,
@@ -96,6 +101,7 @@ export const ClinicalHistoriesList = () => {
       ({ displayInt, id, patient }) => ({
         id: id,
         displayInt: `HC-${displayInt}`,
+        dni: patient?.dni ?? "Sin DNI",
         patientName: `${patient?.firstName} ${patient?.lastName}`,
         psichologystName: (patient?.psychologist) ? `${patient?.psychologist?.firstName} ${patient?.psychologist?.lastName}` : "No asignado",
         adminButton: "Ver detalles",
@@ -125,6 +131,7 @@ export const ClinicalHistoriesList = () => {
       ({ displayInt, id, patient }) => ({
         id: id,
         displayInt: `HC-${displayInt}`,
+        dni: patient?.dni ?? "Sin DNI",
         patientName: `${patient?.firstName} ${patient?.lastName}`,
         psichologystName: `${patient?.psychologist?.firstName} ${patient?.psychologist?.lastName}`,
         adminButton: "Ver detalles",
