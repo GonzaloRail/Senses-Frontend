@@ -32,7 +32,14 @@ interface RoleElement {
   role: RoleRole;
 }
 
-type RoleType = "ADMISSION" | "PSYCHOLOGIST" | "ADMIN" | "INTERNAL";
+type RoleType =
+  | "ADMISSION"
+  | "PSYCHOLOGIST"
+  | "ADMIN"
+  | "INTERNAL"
+  | "AUDITOR"
+  | "CASHIER"
+  | "HR";
 interface RoleRole {
   id: string;
   name: RoleType;

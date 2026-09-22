@@ -20,6 +20,7 @@ interface Props {
   psychologist: string;
   paymentMethod: string;
   reportType: ReportType;
+  reportTypes: { label: string; value: ReportType }[];
   psychologistOptions: PsychologistOption[];
   psychologistLoading: boolean;
   patientOptions: PatientOption[];
@@ -36,7 +37,7 @@ interface Props {
   onExportExcel: () => void;
 }
 
-const REPORT_TYPES: { label: string; value: ReportType }[] = [
+export const REPORT_TYPES: { label: string; value: ReportType }[] = [
   { label: "Ingresos", value: "income" },
   { label: "Egresos", value: "expenses" },
   { label: "Recibos emitidos / anulados", value: "receipts" },
@@ -45,7 +46,7 @@ const REPORT_TYPES: { label: string; value: ReportType }[] = [
 ];
 
 export const ReportFilters = ({
-  dateFrom, dateTo, patient, psychologist, paymentMethod, reportType,
+  dateFrom, dateTo, patient, psychologist, paymentMethod, reportType, reportTypes,
   psychologistOptions, psychologistLoading, patientOptions, patientSearchLoading,
   onDateFromChange, onDateToChange, onPatientChange, onPatientSearch,
   onPsychologistChange, onPaymentMethodChange, onReportTypeChange,
@@ -103,7 +104,7 @@ export const ReportFilters = ({
             onChange={(e) => onReportTypeChange(e.target.value as ReportType)}
             className="border rounded-lg px-2 py-1.5 text-sm bg-white"
           >
-            {REPORT_TYPES.map((t) => (
+            {reportTypes.map((t) => (
               <option key={t.value} value={t.value}>{t.label}</option>
             ))}
           </select>

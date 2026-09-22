@@ -123,6 +123,10 @@ export const AppRouter = () => {
                     <Navigate to="/dashboard" replace />
                   ) : roleNameSelected === "ADMISSION" ? (
                     <Navigate to="/patients" replace />
+                  ) : roleNameSelected === "CASHIER" ? (
+                    <Navigate to="/ingresos" replace />
+                  ) : roleNameSelected === "HR" ? (
+                    <Navigate to="/system-users" replace />
                   ) :                   roleNameSelected === "PSYCHOLOGIST" ||
                     roleNameSelected === "INTERNAL" ? (
                     <Navigate to="/my-patients" replace />
@@ -134,18 +138,10 @@ export const AppRouter = () => {
                 }
               />
 
-              {/* Rutas solo para gerente */}
+              {/* Rutas exclusivas de Gerencia */}
               <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
                 <Route path="dashboard/" element={<Dashboard />} />
-                <Route path="commissions/" element={<CommissionsPage />} />
                 <Route path="audit-logs/" element={<AuditPage />} />
-                <Route path="announcements/" element={<AnnouncementManagementPage />} />
-                <Route path="system-users/" element={<SystemUsersList />} />
-                <Route
-                  path="user-information/:id"
-                  element={<SystemUserInformation />}
-                />
-                <Route path="create-user" element={<SystemUserInformation />} />
 
                 <Route
                   path="clinical-histories/"
@@ -172,19 +168,11 @@ export const AppRouter = () => {
                 <Route path="offices/:id" element={<OfficeInformation />} />
                 <Route path="offices/create" element={<CreateOffice />} />
 
-                <Route path="admin-expenses" element={<AdminExpensesPage />} />
-
                 <Route path="locations/" element={<LocationsList />} />
                 <Route path="location/:id" element={<LocationInformation />} />
                 <Route path="locations/create" element={<CreateLocation />} />
 
-                <Route path="inventory/" element={<InventoryPage />} />
-                <Route path="inventory/:id" element={<ItemInformation />} />
-                <Route path="inventory/create" element={<AssetForm />} />
-                <Route path="inventory/:id/edit" element={<AssetForm />} />
-
                 <Route path="financial-dashboard/" element={<FinancialDashboard />} />
-                <Route path="reports/" element={<ReportsPage />} />
               </Route>
 
               {/* Rutas solo para admisión */}
@@ -202,24 +190,24 @@ export const AppRouter = () => {
                   path="create-appointment"
                   element={<CreateAppointment />}
                 />
-                <Route
-                  path="employee-leaves/"
-                  element={<EmployeeLeavesList />}
-                />
-                <Route
-                  path="employee-leave/:id"
-                  element={<ViewEmployeeLeave />}
-                />
-                <Route
-                  path="employee-leave/:id/edit"
-                  element={<EditEmployeeLeave />}
-                />
-                <Route
-                  path="create-employee-leave"
-                  element={<CreateEmployeeLeave />}
-                />
-                
                 <Route path="my-expenses/" element={<MyExpensesPage />} />
+              </Route>
+
+              {/* Rutas compartidas por Gerencia y Recursos Humanos */}
+              <Route element={<ProtectedRoute allowedRoles={["ADMIN", "HR"]} />}>
+                <Route path="commissions/" element={<CommissionsPage />} />
+                <Route path="announcements/" element={<AnnouncementManagementPage />} />
+                <Route path="system-users/" element={<SystemUsersList />} />
+                <Route path="user-information/:id" element={<SystemUserInformation />} />
+                <Route path="create-user" element={<SystemUserInformation />} />
+              </Route>
+
+              {/* Gestión de licencias habilitada para Gerencia y Recursos Humanos */}
+              <Route element={<ProtectedRoute allowedRoles={["ADMIN", "HR"]} />}>
+                <Route path="employee-leaves/" element={<EmployeeLeavesList />} />
+                <Route path="employee-leave/:id" element={<ViewEmployeeLeave />} />
+                <Route path="employee-leave/:id/edit" element={<EditEmployeeLeave />} />
+                <Route path="create-employee-leave" element={<CreateEmployeeLeave />} />
               </Route>
 
               {/* Rutas para admision y admin */}
@@ -240,15 +228,30 @@ export const AppRouter = () => {
                 />
               </Route>
 
-              {/* Rutas para admin, admision y auditor */}
+              {/* Consultas de ingresos */}
               <Route
                 element={
-                  <ProtectedRoute allowedRoles={["ADMIN", "ADMISSION", "AUDITOR"]} />
+                  <ProtectedRoute allowedRoles={["ADMIN", "CASHIER", "AUDITOR"]} />
                 }
               >
                 <Route path="ingresos/" element={<IngresosList />} />
-                <Route path="ingresos/create" element={<CreateIngreso />} />
                 <Route path="ingresos/report-by-psychologist" element={<IncomeReportByPsychologist />} />
+              </Route>
+
+              {/* Operaciones de Caja y Registro */}
+              <Route element={<ProtectedRoute allowedRoles={["CASHIER"]} />}>
+                <Route path="ingresos/create" element={<CreateIngreso />} />
+                <Route path="my-expenses/" element={<MyExpensesPage />} />
+                <Route path="inventory/create" element={<AssetForm />} />
+                <Route path="inventory/:id/edit" element={<AssetForm />} />
+              </Route>
+
+              {/* Consultas operativas de Gerencia y gestión de Caja */}
+              <Route element={<ProtectedRoute allowedRoles={["ADMIN", "CASHIER"]} />}>
+                <Route path="admin-expenses" element={<AdminExpensesPage />} />
+                <Route path="inventory/" element={<InventoryPage />} />
+                <Route path="inventory/:id" element={<ItemInformation />} />
+                <Route path="reports/" element={<ReportsPage />} />
               </Route>
 
               {/* Para cualquier otro rol autenticado, mostrar NotFound */}

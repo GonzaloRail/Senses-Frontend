@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCommissionsApi, payCommissionApi } from "../api/commissionsApi";
 import { toast } from "sonner";
+import { useAuth } from "@/store/auth/auth.store";
 
 const MONTHS = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -18,6 +19,7 @@ const MONTHS = [
 
 export const CommissionsPage = () => {
   const queryClient = useQueryClient();
+  const canManageCommissions = useAuth((state) => state.roleSelected) === "ADMIN";
   
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
@@ -185,7 +187,7 @@ export const CommissionsPage = () => {
                               PAGADO
                             </Badge>
                           )}
-                          {c.paymentStatus === "PENDING" && (
+                          {canManageCommissions && c.paymentStatus === "PENDING" && (
                             <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
                               PENDIENTE
                             </Badge>
@@ -197,7 +199,7 @@ export const CommissionsPage = () => {
                           )}
                         </TableCell>
                         <TableCell className="text-center">
-                          {c.paymentStatus === "PENDING" && (
+                          {canManageCommissions && c.paymentStatus === "PENDING" && (
                             <Button 
                               size="sm" 
                               onClick={() => handlePay(c.id)}

@@ -31,6 +31,7 @@ export const IngresosList = () => {
   const navigate = useNavigate();
   const roleSelected = useAuth((state) => state.roleSelected);
   const isAdmin = roleSelected === "ADMIN";
+  const canCreateIncome = roleSelected === "CASHIER";
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("all");
   const [dailyDate, setDailyDate] = useState(new Date().toISOString().slice(0, 10));
@@ -116,7 +117,7 @@ export const IngresosList = () => {
                           Exportar Excel
                         </Button>
                       )}
-                      {showIncomeContent && roleSelected !== "ADMIN" && (
+                      {showIncomeContent && canCreateIncome && (
                         <Button onClick={() => navigate("/ingresos/create")}>
                           Nuevo ingreso
                         </Button>

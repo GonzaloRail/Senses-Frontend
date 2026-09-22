@@ -17,6 +17,8 @@ const ROLE_TRANSLATIONS: Record<string, string> = {
   "ADMIN": "Administrador",
   "ADMISSION": "Admisión",
   "INTERNAL": "Interno",
+  "CASHIER": "Caja y Registro",
+  "HR": "Recursos Humanos",
   "PATIENT": "Paciente",
 };
 
@@ -56,6 +58,8 @@ export const AnnouncementManagementPage = () => {
     PSYCHOLOGIST: true,
     ADMIN: false,
     ADMISSION: false,
+    CASHIER: false,
+    HR: false,
   });
 
   const handleGlobalSubmit = async (e: React.FormEvent) => {
@@ -285,6 +289,24 @@ export const AnnouncementManagementPage = () => {
                       className="border-senses-secondary text-senses-primary" 
                     />
                     <Label htmlFor="role-admi" className="cursor-pointer font-bold text-senses-primary">Admisión / Recepción</Label>
+                  </div>
+                  <div className="flex items-center space-x-3 border border-senses-secondary/30 p-4 rounded-lg bg-senses-primary/5 hover:bg-senses-secondary/10 transition-colors cursor-pointer">
+                    <Checkbox
+                      id="role-cashier"
+                      checked={targetRoles.CASHIER}
+                      onCheckedChange={(c) => setTargetRoles(prev => ({...prev, CASHIER: !!c}))}
+                      className="border-senses-secondary text-senses-primary"
+                    />
+                    <Label htmlFor="role-cashier" className="cursor-pointer font-bold text-senses-primary">Caja y Registro</Label>
+                  </div>
+                  <div className="flex items-center space-x-3 border border-senses-secondary/30 p-4 rounded-lg bg-senses-primary/5 hover:bg-senses-secondary/10 transition-colors cursor-pointer">
+                    <Checkbox
+                      id="role-hr"
+                      checked={targetRoles.HR}
+                      onCheckedChange={(c) => setTargetRoles(prev => ({...prev, HR: !!c}))}
+                      className="border-senses-secondary text-senses-primary"
+                    />
+                    <Label htmlFor="role-hr" className="cursor-pointer font-bold text-senses-primary">Recursos Humanos</Label>
                   </div>
                 </div>
               </div>

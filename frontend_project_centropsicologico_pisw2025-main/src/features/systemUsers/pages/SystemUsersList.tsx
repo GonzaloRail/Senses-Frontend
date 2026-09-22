@@ -15,6 +15,8 @@ const rolesName = {
   ADMIN: "Gerente",
   INTERNAL: "Interno",
   AUDITOR: "Auditor",
+  CASHIER: "Caja y Registro",
+  HR: "Recursos Humanos",
 };
 
 export const SystemUsersList = () => {

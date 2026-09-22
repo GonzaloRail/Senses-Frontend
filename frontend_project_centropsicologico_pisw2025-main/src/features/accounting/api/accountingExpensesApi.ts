@@ -2,6 +2,7 @@ import api from "@/api/api";
 
 export interface AccountingExpense {
   id: string;
+  expenseDate: string;
   type: string;
   concept: string;
   amount: number;
@@ -15,7 +16,7 @@ export interface AccountingExpense {
   evidenceUrl?: string;
   observations?: string;
 
-  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+  status: "PENDING" | "APPROVED" | "REJECTED";
   
   responsibleId?: string;
   monthlyCloseId?: string;
@@ -53,7 +54,7 @@ export interface CreateAccountingExpenseData {
 }
 
 export interface UpdateAccountingExpenseStatusData {
-  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+  status: "PENDING" | "APPROVED" | "REJECTED";
   reviewComment?: string;
 }
 
@@ -61,7 +62,7 @@ export const accountingExpensesApi = {
   getAll: async (params?: GetAccountingExpensesParams) => {
     const response = await api.get<{
       data: AccountingExpense[];
-      meta: { total: number; page: number; lastPage: number };
+      meta: { total: number; page: number; take: number; totalPages: number };
     }>("/api/v1/accounting-expenses", { params });
     return response.data;
   },
@@ -76,8 +77,17 @@ export const accountingExpensesApi = {
     return response.data;
   },
 
+  update: async (id: string, data: Partial<CreateAccountingExpenseData>) => {
+    const response = await api.put<AccountingExpense>(`/api/v1/accounting-expenses/${id}`, data);
+    return response.data;
+  },
+
   updateStatus: async (id: string, data: UpdateAccountingExpenseStatusData) => {
     const response = await api.patch<AccountingExpense>(`/api/v1/accounting-expenses/${id}/status`, data);
     return response.data;
+  },
+
+  remove: async (id: string) => {
+    await api.delete(`/api/v1/accounting-expenses/${id}`);
   },
 };
