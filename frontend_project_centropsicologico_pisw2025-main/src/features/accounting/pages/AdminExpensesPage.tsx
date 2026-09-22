@@ -35,8 +35,13 @@ import { formatDateTime } from "@/shared/utils/formatters";
 import { Search, FileSpreadsheet, CheckCircle2, XCircle, Clock, Wallet, AlertCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { accountingExpensesApi } from "../api/accountingExpensesApi";
+import { useAuth } from "@/store/auth/auth.store";
+import { useNavigate } from "react-router";
 
 export const AdminExpensesPage = () => {
+  const roleSelected = useAuth((state) => state.roleSelected);
+  const canManageExpenses = roleSelected === "CASHIER";
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -312,13 +317,20 @@ export const AdminExpensesPage = () => {
               </div>
             </div>
             
-            <Button 
-              onClick={handleExportExcel}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg h-10 px-4 shadow-sm w-full sm:w-auto"
-            >
-              <FileSpreadsheet className="w-4 h-4 mr-2" />
-              Exportar a Excel
-            </Button>
+            <div className="flex w-full sm:w-auto gap-2">
+              {canManageExpenses && (
+                <Button onClick={() => navigate("/my-expenses")} className="flex-1 sm:flex-none">
+                  Registrar egreso
+                </Button>
+              )}
+              <Button
+                onClick={handleExportExcel}
+                className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg h-10 px-4 shadow-sm"
+              >
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Exportar a Excel
+              </Button>
+            </div>
           </div>
 
           {/* Table Area */}
@@ -379,7 +391,7 @@ export const AdminExpensesPage = () => {
                           {getStatusBadge(expense.status)}
                         </TableCell>
                         <TableCell className="text-center">
-                          {expense.status === "PENDING" ? (
+                           {canManageExpenses && expense.status === "PENDING" ? (
                             <div className="flex justify-center items-center gap-2">
                               <Button
                                 size="icon"

@@ -19,9 +19,11 @@ import type { InventoryItem, InventoryCategory } from "../api/inventoryApi";
 import { exportInventoryExcel, exportInventoryPdf } from "../utils/exportInventory";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AssetDetailsSheet } from "../components/AssetDetailsSheet";
+import { useAuth } from "@/store/auth/auth.store";
 
 export const InventoryPage = () => {
   const navigate = useNavigate();
+  const canManageInventory = useAuth((state) => state.roleSelected) === "CASHIER";
   const [data, setData] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [loading, setLoading] = useState(false);
@@ -140,10 +142,12 @@ export const InventoryPage = () => {
               }}>
                 Ver Detalles
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(`/inventory/${asset.id}/edit`)}>
-                Editar
-              </DropdownMenuItem>
-              {!isDadoDeBaja && (
+              {canManageInventory && (
+                <DropdownMenuItem onClick={() => navigate(`/inventory/${asset.id}/edit`)}>
+                  Editar
+                </DropdownMenuItem>
+              )}
+              {canManageInventory && !isDadoDeBaja && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
@@ -226,10 +230,10 @@ export const InventoryPage = () => {
           ) : (
             <DataTable
               fetchData={fetchTableData}
-              addItem={{
+              addItem={canManageInventory ? {
                 addItemLabel: "Registrar Nuevo Activo",
                 onClickAddItem: () => navigate("/inventory/create"),
-              }}
+              } : undefined}
               columns={columns as any}
             />
           )}

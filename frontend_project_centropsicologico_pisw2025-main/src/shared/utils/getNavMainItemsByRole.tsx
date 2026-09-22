@@ -22,6 +22,11 @@ export const getNavMainItemsByRole = (role: string) => {
           url: "/system-users",
         },
         {
+          title: "Gestión de permisos",
+          icon: FaUserCog,
+          url: "/employee-leaves",
+        },
+        {
           title: "Historias clínicas",
           icon: GiHealthNormal,
           url: "/clinical-histories",
@@ -111,26 +116,61 @@ export const getNavMainItemsByRole = (role: string) => {
           url: "/schedules",
         },
         {
-          title: "Gestión de permisos",
-          icon: FaUserCog,
-          url: "/employee-leaves",
-        },
-        {
           title: "Mis Gastos",
           icon: FaMoneyBillWave,
           url: "/my-expenses",
-        
-        },
-        {
-          title: "Registro de ingresos",
-          icon: TbReceipt,
-          url: "/ingresos",
         },
         {
           title: "Recordatorios de citas",
           icon: MdNotificationsActive,
           url: "/appointment-notifications",
         }
+      ];
+    case "CASHIER":
+      return [
+        {
+          title: "Registro de ingresos",
+          icon: TbReceipt,
+          url: "/ingresos",
+        },
+        {
+          title: "Libro de Egresos",
+          icon: FaMoneyBillWave,
+          url: "/admin-expenses",
+        },
+        {
+          title: "Gestión de inventarios",
+          icon: MdInventory,
+          url: "/inventory",
+        },
+        {
+          title: "Reportes",
+          icon: FaFileAlt,
+          url: "/reports",
+        },
+      ];
+    case "HR":
+      return [
+        {
+          title: "Gestión de usuarios del sistema",
+          icon: FaUser,
+          url: "/system-users",
+        },
+        {
+          title: "Gestión de comunicados",
+          icon: MdAnnouncement,
+          url: "/announcements",
+        },
+        {
+          title: "Gestión de permisos",
+          icon: FaUserCog,
+          url: "/employee-leaves",
+        },
+        {
+          title: "Comisiones de Psicólogos",
+          icon: FaPercentage,
+          url: "/commissions",
+        },
       ];
     case "PSYCHOLOGIST":
       return [

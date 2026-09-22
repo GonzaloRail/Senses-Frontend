@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import type { ReportType, MockReceipt, MockExpense, CommissionByPsychologist, CashFlowData } from "@/shared/interfaces/models/Financial";
 import { useReportsData } from "../hooks/useReportsData";
-import { ReportFilters } from "../components/ReportFilters";
+import { ReportFilters, REPORT_TYPES } from "../components/ReportFilters";
 import { IncomeReport } from "../components/IncomeReport";
 import { ExpensesReport } from "../components/ExpensesReport";
 import { ReceiptsReport } from "../components/ReceiptsReport";
@@ -13,6 +13,7 @@ import { exportIncomesExcel, exportExpensesExcel, exportCommissionsExcel, export
 import { exportToPdf } from "../utils/exportPdf";
 import { usePsychologists } from "@/features/ingresos/hooks/useIngresosQueries";
 import { searchPatientsApi } from "@/features/patients/api/patientsApi";
+import { useAuth } from "@/store/auth/auth.store";
 
 function dateDisplay(iso: string) {
   if (!iso) return "";
@@ -32,12 +33,16 @@ function getMonthRange() {
 const defaultMonth = getMonthRange();
 
 export const ReportsPage = () => {
+  const roleSelected = useAuth((state) => state.roleSelected);
+  const reportTypes = roleSelected === "CASHIER"
+    ? REPORT_TYPES.filter(({ value }) => value === "income" || value === "expenses" || value === "receipts")
+    : REPORT_TYPES;
   const [dateFrom, setDateFrom] = useState(defaultMonth.from);
   const [dateTo, setDateTo] = useState(defaultMonth.to);
   const [patientId, setPatientId] = useState("");
   const [psychologist, setPsychologist] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
-  const [reportType, setReportType] = useState<ReportType>("cash-flow");
+  const [reportType, setReportType] = useState<ReportType>(roleSelected === "CASHIER" ? "income" : "cash-flow");
 
   const [patientOptions, setPatientOptions] = useState<{ id: string; name: string; dni?: string }[]>([]);
   const [patientSearchLoading, setPatientSearchLoading] = useState(false);
@@ -119,8 +124,9 @@ export const ReportsPage = () => {
       <div className="p-4 lg:p-6">
         <ReportFilters
           dateFrom={dateFrom} dateTo={dateTo}
-          patient={patientId} psychologist={psychologist}
-          paymentMethod={paymentMethod} reportType={reportType}
+           patient={patientId} psychologist={psychologist}
+            paymentMethod={paymentMethod} reportType={reportType}
+           reportTypes={reportTypes}
           psychologistOptions={psychologistOptions} psychologistLoading={psychLoading}
           patientOptions={patientOptions} patientSearchLoading={patientSearchLoading}
           onDateFromChange={setDateFrom} onDateToChange={setDateTo}

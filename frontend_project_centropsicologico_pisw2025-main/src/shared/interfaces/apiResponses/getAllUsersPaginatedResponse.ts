@@ -6,4 +6,11 @@ export interface UsersPaginatedResponse {
   users: User[];
 }
 
-export type RoleName = "INTERNAL" | "PSYCHOLOGIST" | "ADMIN" | "ADMISSION";
+export type RoleName =
+  | "INTERNAL"
+  | "PSYCHOLOGIST"
+  | "ADMIN"
+  | "ADMISSION"
+  | "AUDITOR"
+  | "CASHIER"
+  | "HR";

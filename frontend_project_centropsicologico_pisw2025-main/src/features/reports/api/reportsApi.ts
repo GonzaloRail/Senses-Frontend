@@ -25,7 +25,7 @@ function incomeToMock(item: import("@/shared/interfaces/models/IncomeReceipt").I
 function expenseToMock(item: import("@/features/accounting/api/accountingExpensesApi").AccountingExpense): MockExpense {
   return {
     id: item.id as any,
-    date: item.createdAt?.slice(0, 10) ?? "",
+    date: item.expenseDate?.slice(0, 10) ?? "",
     type: item.type ?? "Variable",
     concept: item.concept ?? "",
     provider: item.supplierName ?? "",

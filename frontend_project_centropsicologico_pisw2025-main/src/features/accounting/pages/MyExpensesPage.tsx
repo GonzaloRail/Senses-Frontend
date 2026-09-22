@@ -30,16 +30,17 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { formatDateTime } from "@/shared/utils/formatters";
-import { Plus, Receipt, Search } from "lucide-react";
+import { Pencil, Plus, Receipt, Search, Trash2 } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { accountingExpensesApi } from "../api/accountingExpensesApi";
+import { accountingExpensesApi, type AccountingExpense } from "../api/accountingExpensesApi";
+import { useAuth } from "@/store/auth/auth.store";
 
 // Form Schema
 const expenseSchema = z.object({
-  type: z.enum(["FIXED", "VARIABLE"]),
+  type: z.enum(["FIXED", "VARIABLE", "ASSET"]),
   concept: z.string().min(3, "El concepto debe tener al menos 3 caracteres"),
   amount: z.coerce.number().positive("El monto debe ser positivo"),
   purpose: z.enum(["SERVICES", "MATERIALS", "TAXES", "OTHER"]),
@@ -54,8 +55,11 @@ const expenseSchema = z.object({
 type ExpenseFormValues = z.infer<typeof expenseSchema>;
 
 export const MyExpensesPage = () => {
+  const roleSelected = useAuth((state) => state.roleSelected);
+  const isCashier = roleSelected === "CASHIER";
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<AccountingExpense | null>(null);
   const queryClient = useQueryClient();
 
   // Mapeos de UI a Backend y viceversa
@@ -100,6 +104,27 @@ export const MyExpensesPage = () => {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ExpenseFormValues }) => accountingExpensesApi.update(id, data),
+    onSuccess: () => {
+      toast.success("Egreso actualizado correctamente");
+      queryClient.invalidateQueries({ queryKey: ["accountingExpenses"] });
+      setEditingExpense(null);
+      setIsModalOpen(false);
+      reset();
+    },
+    onError: () => toast.error("No se pudo actualizar el egreso"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: accountingExpensesApi.remove,
+    onSuccess: () => {
+      toast.success("Egreso eliminado correctamente");
+      queryClient.invalidateQueries({ queryKey: ["accountingExpenses"] });
+    },
+    onError: () => toast.error("No se pudo eliminar el egreso"),
+  });
+
   const {
     register,
     handleSubmit,
@@ -123,7 +148,36 @@ export const MyExpensesPage = () => {
   });
 
   const onSubmit = (data: ExpenseFormValues) => {
+    if (editingExpense) {
+      updateMutation.mutate({ id: editingExpense.id, data });
+      return;
+    }
     createMutation.mutate(data);
+  };
+
+  const openEdit = (expense: AccountingExpense) => {
+    setEditingExpense(expense);
+    reset({
+      type: expense.type as ExpenseFormValues["type"],
+      concept: expense.concept,
+      amount: Number(expense.amount),
+      purpose: expense.purpose as ExpenseFormValues["purpose"],
+      supplierName: expense.supplierName ?? "",
+      supplierDocument: expense.supplierDocument ?? "",
+      receiptType: expense.receiptType as ExpenseFormValues["receiptType"],
+      receiptNumber: expense.receiptNumber ?? "",
+      paymentMethod: expense.paymentMethod as ExpenseFormValues["paymentMethod"],
+      observations: expense.observations ?? "",
+    });
+    setIsModalOpen(true);
+  };
+
+  const closeDialog = (open: boolean) => {
+    setIsModalOpen(open);
+    if (!open) {
+      setEditingExpense(null);
+      reset();
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -157,7 +211,7 @@ export const MyExpensesPage = () => {
 
   return (
     <div className="h-screen flex flex-col bg-slate-50/50">
-      <SiteHeader title="Mis Gastos (Psicología / Admisión)" />
+      <SiteHeader title={isCashier ? "Libro de Egresos" : "Mis Gastos (Psicología / Admisión)"} />
       
       <div className="flex-1 p-6 overflow-y-auto custom-scroll">
         <div className="max-w-6xl mx-auto space-y-6">
@@ -173,7 +227,7 @@ export const MyExpensesPage = () => {
               />
             </div>
             
-            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <Dialog open={isModalOpen} onOpenChange={closeDialog}>
               <DialogTrigger asChild>
                 <Button className="bg-senses-primary hover:bg-senses-primary/90 text-white rounded-lg h-10 px-4 shadow-sm w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
@@ -184,7 +238,7 @@ export const MyExpensesPage = () => {
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2 text-xl">
                     <Receipt className="w-5 h-5 text-senses-primary" />
-                    Registro de Egresos
+                    {editingExpense ? "Editar egreso" : "Registro de Egresos"}
                   </DialogTitle>
                   <DialogDescription>
                     Complete los datos del comprobante y la clasificación interna del gasto.
@@ -300,8 +354,9 @@ export const MyExpensesPage = () => {
                                 <SelectValue placeholder="Seleccione el tipo" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="FIXED">Fijo</SelectItem>
-                                <SelectItem value="VARIABLE">Variable</SelectItem>
+                                  <SelectItem value="FIXED">Fijo</SelectItem>
+                                  <SelectItem value="VARIABLE">Variable</SelectItem>
+                                  <SelectItem value="ASSET">Activo</SelectItem>
                               </SelectContent>
                             </Select>
                           )}
@@ -328,8 +383,8 @@ export const MyExpensesPage = () => {
                     <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                       Cancelar
                     </Button>
-                    <Button type="submit" disabled={createMutation.isPending} className="bg-senses-primary text-white">
-                      {createMutation.isPending ? "Guardando..." : "Guardar Egreso"}
+                    <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} className="bg-senses-primary text-white">
+                      {createMutation.isPending || updateMutation.isPending ? "Guardando..." : editingExpense ? "Guardar cambios" : "Guardar Egreso"}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -350,18 +405,19 @@ export const MyExpensesPage = () => {
                     <TableHead className="font-semibold text-slate-600">Área</TableHead>
                     <TableHead className="font-semibold text-slate-600 text-right">Monto (S/)</TableHead>
                     <TableHead className="font-semibold text-slate-600 text-center">Estado</TableHead>
+                    {isCashier && <TableHead className="font-semibold text-slate-600 text-center">Acciones</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-32 text-center text-slate-500">
+                      <TableCell colSpan={isCashier ? 9 : 8} className="h-32 text-center text-slate-500">
                         Cargando egresos...
                       </TableCell>
                     </TableRow>
                   ) : paginatedExpenses.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center text-slate-500">
+                      <TableCell colSpan={isCashier ? 9 : 8} className="h-24 text-center text-slate-500">
                         No se encontraron gastos que coincidan con la búsqueda.
                       </TableCell>
                     </TableRow>
@@ -395,6 +451,31 @@ export const MyExpensesPage = () => {
                         <TableCell className="text-center">
                           {getStatusBadge(expense.status)}
                         </TableCell>
+                        {isCashier && (
+                          <TableCell className="text-center">
+                            {expense.status === "PENDING" ? (
+                              <div className="flex justify-center gap-1">
+                                <Button variant="ghost" size="icon" onClick={() => openEdit(expense)} title="Editar egreso">
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive hover:text-destructive"
+                                  disabled={deleteMutation.isPending}
+                                  onClick={() => {
+                                    if (confirm("¿Eliminar este egreso pendiente?")) deleteMutation.mutate(expense.id);
+                                  }}
+                                  title="Eliminar egreso"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-slate-400">No editable</span>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}

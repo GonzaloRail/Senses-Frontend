@@ -39,13 +39,10 @@ const rolesName = {
   PSYCHOLOGIST: "Psicólogo",
   ADMIN: "Gerente",
   INTERNAL: "Interno",
+  AUDITOR: "Auditor",
+  CASHIER: "Caja y Registro",
+  HR: "Recursos Humanos",
 };
-
-// Crear opciones para el selector de roles con valores en inglés y etiquetas en español
-const roleOptions = Object.entries(rolesName).map(([value, label]) => ({
-  id: value,
-  label,
-}));
 
 export const SystemUserInformation = () => {
   const methods = useForm<UserFormSchema>({
@@ -89,6 +86,10 @@ export const SystemUserInformation = () => {
   const { data: userData, isLoading } = useUserByIdQuery({ id });
   // creo que no esta trayendo schedules, falta eso y poder editar horarios de hbaerlos
   const { data: rolesDb } = useRolesQuery();
+  const roleOptions = (rolesDb ?? []).map((role) => ({
+    id: role.name,
+    label: rolesName[role.name],
+  }));
   const updateUser = useUpdateUser();
   const createUser = useCreateUser();
 

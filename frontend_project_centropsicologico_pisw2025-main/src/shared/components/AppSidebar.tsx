@@ -10,6 +10,7 @@ import { NavMainItems } from "./NavMainItems";
 import { getNavMainItemsByRole } from "../utils/getNavMainItemsByRole";
 import { NavUser } from "./NavUser";
 import { useAuth } from "@/store/auth/auth.store";
+import { RolePreviewControl } from "./RolePreviewControl";
 
 const rolesName = {
   ADMISSION: "Admisión",
@@ -17,6 +18,8 @@ const rolesName = {
   ADMIN: "Gerente",
   INTERNAL: "Interno",
   AUDITOR: "Auditor",
+  CASHIER: "Caja y Registro",
+  HR: "Recursos Humanos",
 };
 export const AppSidebar = ({
   ...props
@@ -53,6 +56,7 @@ export const AppSidebar = ({
         <NavMainItems items={navMainItems} />
       </SidebarContent>
       <SidebarFooter>
+        <RolePreviewControl />
         <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
