@@ -10,7 +10,6 @@ import { NavMainItems } from "./NavMainItems";
 import { getNavMainItemsByRole } from "../utils/getNavMainItemsByRole";
 import { NavUser } from "./NavUser";
 import { useAuth } from "@/store/auth/auth.store";
-import { RolePreviewControl } from "./RolePreviewControl";
 
 const rolesName = {
   ADMISSION: "Admisión",
@@ -56,7 +55,6 @@ export const AppSidebar = ({
         <NavMainItems items={navMainItems} />
       </SidebarContent>
       <SidebarFooter>
-        <RolePreviewControl />
         <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
