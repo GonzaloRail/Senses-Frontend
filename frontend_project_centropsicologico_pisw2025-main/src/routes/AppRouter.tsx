@@ -128,27 +128,24 @@ export const AppRouter = () => {
                     <Navigate to="/my-patients" replace />
                   ) : roleNameSelected === "AUDITOR" ? (
                     <Navigate to="/ingresos" replace />
-                  ) : roleNameSelected === "HR" ? (
-                    <Navigate to="/system-users" replace />
                   ) : (
                     <Navigate to="/not-found" replace />
                   )
                 }
               />
 
-              {/* Rutas para gerente y RRHH */}
-              <Route element={<ProtectedRoute allowedRoles={["ADMIN", "HR"]} />}>
-                <Route path="commissions/" element={<CommissionsPage />} />
-                <Route path="announcements/" element={<AnnouncementManagementPage />} />
-                <Route path="system-users/" element={<SystemUsersList />} />
-                <Route path="user-information/:id" element={<SystemUserInformation />} />
-                <Route path="create-user" element={<SystemUserInformation />} />
-              </Route>
-
               {/* Rutas solo para gerente */}
               <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
                 <Route path="dashboard/" element={<Dashboard />} />
+                <Route path="commissions/" element={<CommissionsPage />} />
                 <Route path="audit-logs/" element={<AuditPage />} />
+                <Route path="announcements/" element={<AnnouncementManagementPage />} />
+                <Route path="system-users/" element={<SystemUsersList />} />
+                <Route
+                  path="user-information/:id"
+                  element={<SystemUserInformation />}
+                />
+                <Route path="create-user" element={<SystemUserInformation />} />
 
                 <Route
                   path="clinical-histories/"
@@ -205,15 +202,24 @@ export const AppRouter = () => {
                   path="create-appointment"
                   element={<CreateAppointment />}
                 />
+                <Route
+                  path="employee-leaves/"
+                  element={<EmployeeLeavesList />}
+                />
+                <Route
+                  path="employee-leave/:id"
+                  element={<ViewEmployeeLeave />}
+                />
+                <Route
+                  path="employee-leave/:id/edit"
+                  element={<EditEmployeeLeave />}
+                />
+                <Route
+                  path="create-employee-leave"
+                  element={<CreateEmployeeLeave />}
+                />
+                
                 <Route path="my-expenses/" element={<MyExpensesPage />} />
-              </Route>
-
-              {/* Rutas solo para Recursos Humanos */}
-              <Route element={<ProtectedRoute allowedRoles={["HR"]} />}>
-                <Route path="employee-leaves/" element={<EmployeeLeavesList />} />
-                <Route path="employee-leave/:id" element={<ViewEmployeeLeave />} />
-                <Route path="employee-leave/:id/edit" element={<EditEmployeeLeave />} />
-                <Route path="create-employee-leave" element={<CreateEmployeeLeave />} />
               </Route>
 
               {/* Rutas para admision y admin */}

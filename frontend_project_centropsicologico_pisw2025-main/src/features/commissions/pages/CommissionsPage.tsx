@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getCommissionsApi, payCommissionApi } from "../api/commissionsApi";
 import { toast } from "sonner";
-import { useAuth } from "@/store/auth/auth.store";
 
 const MONTHS = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -19,8 +18,6 @@ const MONTHS = [
 
 export const CommissionsPage = () => {
   const queryClient = useQueryClient();
-  const roleSelected = useAuth((state) => state.roleSelected);
-  const isHR = roleSelected === "HR";
   
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
@@ -137,7 +134,7 @@ export const CommissionsPage = () => {
                     <TableHead className="text-right">Total Comisión</TableHead>
                     <TableHead className="text-right">Neto Senses</TableHead>
                     <TableHead className="text-center">Estado</TableHead>
-                    {!isHR && <TableHead className="text-center">Acciones</TableHead>}
+                    <TableHead className="text-center">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -199,20 +196,18 @@ export const CommissionsPage = () => {
                             </Badge>
                           )}
                         </TableCell>
-                        {!isHR && (
-                          <TableCell className="text-center">
-                            {c.paymentStatus === "PENDING" && (
-                              <Button 
-                                size="sm" 
-                                onClick={() => handlePay(c.id)}
-                                disabled={payMutation.isPending}
-                                className="h-8 bg-slate-900 hover:bg-slate-800"
-                              >
-                                <CheckCircle className="mr-1 h-3 w-3" /> Pagar
-                              </Button>
-                            )}
-                          </TableCell>
-                        )}
+                        <TableCell className="text-center">
+                          {c.paymentStatus === "PENDING" && (
+                            <Button 
+                              size="sm" 
+                              onClick={() => handlePay(c.id)}
+                              disabled={payMutation.isPending}
+                              className="h-8 bg-slate-900 hover:bg-slate-800"
+                            >
+                              <CheckCircle className="mr-1 h-3 w-3" /> Pagar
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))
                   )}

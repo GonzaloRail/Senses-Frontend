@@ -158,29 +158,6 @@ export const getNavMainItemsByRole = (role: string) => {
           url: "/ingresos",
         },
       ];
-    case "HR":
-      return [
-        {
-          title: "Gestión de usuarios",
-          icon: FaUser,
-          url: "/system-users",
-        },
-        {
-          title: "Gestión de permisos",
-          icon: FaUserCog,
-          url: "/employee-leaves",
-        },
-        {
-          title: "Gestión de comunicados",
-          icon: MdAnnouncement,
-          url: "/announcements",
-        },
-        {
-          title: "Comisiones de Psicólogos",
-          icon: FaPercentage,
-          url: "/commissions",
-        },
-      ];
     default:
       return [];
   }
