@@ -9,6 +9,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
 import { getAllPatientsApi, getPatientByIdApi } from "../api/patientsApi";
+import { useAuth } from "@/store/auth/auth.store";
 import {
   PatientTableSearch,
   arePatientTableFiltersEqual,
@@ -107,6 +108,8 @@ const buildPatientsCsv = (patients: Partial<Patient>[]) => {
 
 export const PatientsList = () => {
   const navigate = useNavigate();
+  const roleSelected = useAuth((state) => state.roleSelected);
+  const isPsychologist = roleSelected === "PSYCHOLOGIST";
   const [appliedFilters, setAppliedFilters] = useState<PatientTableFilters>(getEmptyPatientTableFilters);
 
   const columns: ColumnDef<PatientsListSchema>[] = [
@@ -242,10 +245,12 @@ export const PatientsList = () => {
                   navigate("/patients/create");
                 },
               }}
-              optionalExtraButton={{
-                optionalExtraButtonLabel: "Exportar pacientes",
-                onClickOptionalExtraButton: downloadExcel,
-              }}
+              {...(!isPsychologist && {
+                optionalExtraButton: {
+                  optionalExtraButtonLabel: "Exportar pacientes",
+                  onClickOptionalExtraButton: downloadExcel,
+                },
+              })}
             />
           </div>
         </div>
