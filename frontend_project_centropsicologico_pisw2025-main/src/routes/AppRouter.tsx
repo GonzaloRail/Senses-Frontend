@@ -175,8 +175,8 @@ export const AppRouter = () => {
                 <Route path="financial-dashboard/" element={<FinancialDashboard />} />
               </Route>
 
-              {/* Rutas solo para admisión */}
-              <Route element={<ProtectedRoute allowedRoles={["ADMISSION"]} />}>
+              {/* Rutas para admisión y gerencia */}
+              <Route element={<ProtectedRoute allowedRoles={["ADMISSION", "ADMIN"]} />}>
                 <Route path="patients/" element={<PatientsList />} />
                 <Route path="patients/create" element={<CreatePatient />} />
                 <Route path="patient/:id" element={<PatientInformation />} />

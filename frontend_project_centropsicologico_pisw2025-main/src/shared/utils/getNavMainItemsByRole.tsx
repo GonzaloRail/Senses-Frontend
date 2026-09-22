@@ -32,6 +32,11 @@ export const getNavMainItemsByRole = (role: string) => {
           url: "/clinical-histories",
         },
         {
+          title: "Pacientes (CRM)",
+          icon: FaUser,
+          url: "/patients",
+        },
+        {
           title: "Gestión de consultorios",
           icon: PiOfficeChairBold,
           url: "/offices",
