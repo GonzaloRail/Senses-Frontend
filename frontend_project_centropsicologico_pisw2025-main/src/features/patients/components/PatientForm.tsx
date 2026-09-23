@@ -1126,15 +1126,17 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
                 >
                   Volver
                 </Button>
-                <Button
-                  onClick={handleEdit}
-                  className="flex items-center gap-2"
-                  disabled={loading}
-                  type="button"
-                >
-                  <Edit className="h-4 w-4" />
-                  Editar
-                </Button>
+                {roleSelected !== "ADMIN" && (
+                  <Button
+                    onClick={handleEdit}
+                    className="flex items-center gap-2"
+                    disabled={loading}
+                    type="button"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Editar
+                  </Button>
+                )}
               </>
             )}
             {(mode === "edit" || mode === "create") && (

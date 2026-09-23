@@ -178,8 +178,12 @@ export const AppRouter = () => {
               {/* Rutas para admisión y gerencia */}
               <Route element={<ProtectedRoute allowedRoles={["ADMISSION", "ADMIN"]} />}>
                 <Route path="patients/" element={<PatientsList />} />
-                <Route path="patients/create" element={<CreatePatient />} />
                 <Route path="patient/:id" element={<PatientInformation />} />
+              </Route>
+
+              {/* Rutas solo para admisión */}
+              <Route element={<ProtectedRoute allowedRoles={["ADMISSION"]} />}>
+                <Route path="patients/create" element={<CreatePatient />} />
                 <Route path="appointments/" element={<AppointmentsList />} />
                 <Route path="appointment/:id" element={<ViewAppointment />} />
                 <Route

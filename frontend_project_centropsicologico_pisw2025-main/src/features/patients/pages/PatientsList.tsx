@@ -110,6 +110,7 @@ export const PatientsList = () => {
   const navigate = useNavigate();
   const roleSelected = useAuth((state) => state.roleSelected);
   const isPsychologist = roleSelected === "PSYCHOLOGIST";
+  const isAdmin = roleSelected === "ADMIN";
   const [appliedFilters, setAppliedFilters] = useState<PatientTableFilters>(getEmptyPatientTableFilters);
 
   const columns: ColumnDef<PatientsListSchema>[] = [
@@ -239,12 +240,14 @@ export const PatientsList = () => {
             <DataTable
               fetchData={fetchData}
               columns={columns}
-              addItem={{
-                addItemLabel: "Agregar nuevo paciente",
-                onClickAddItem: () => {
-                  navigate("/patients/create");
+              {...(!isAdmin && {
+                addItem: {
+                  addItemLabel: "Agregar nuevo paciente",
+                  onClickAddItem: () => {
+                    navigate("/patients/create");
+                  },
                 },
-              }}
+              })}
               {...(!isPsychologist && {
                 optionalExtraButton: {
                   optionalExtraButtonLabel: "Exportar pacientes",
