@@ -34,6 +34,9 @@ import {
   extractComplementaryFormValues,
 } from "../utils/patientComplementaryFields";
 import { useAuth } from "@/store/auth/auth.store";
+import { uploadPatientImageApi } from "../api/patientsApi";
+import { PatientPhotoField } from "./PatientPhotoField";
+import { toast } from "sonner";
 
 export type FormMode = "view" | "edit" | "create";
 
@@ -248,6 +251,7 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
         ...extractComplementaryFormValues(data),
       });
       setShowComplementary(true);
+      setSelectedPhoto(undefined);
     }
   }, [mode, data, reset]);
 
@@ -274,6 +278,9 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
   const [showComplementary, setShowComplementary] = useState(false);
   const [openSections, setOpenSections] =
     useState<Record<ComplementarySectionKey, boolean>>(initialOpenSections);
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null | undefined>(
+    undefined
+  );
 
   const toggleSection = (section: ComplementarySectionKey) => {
     setOpenSections((current) => ({
@@ -361,6 +368,12 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
       }
 
       setLoading(true);
+      const imageUrl = selectedPhoto
+        ? await uploadPatientImageApi(selectedPhoto)
+        : selectedPhoto === null
+        ? null
+        : values.imageUrl;
+
       if (mode === "create") {
         console.log("valores", getValues());
 
@@ -370,6 +383,7 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
           : removeComplementaryFields(values);
         const payload = {
           ...valuesToSubmit,
+          imageUrl: imageUrl ?? undefined,
           gender: valuesToSubmit.gender as Gender,
           maritalStatus: valuesToSubmit.maritalStatus as MaritalStatus,
           // esto es importante para que no se altere la fecha
@@ -382,7 +396,9 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
         // Normalizar datos para la API
         const normalizedData = Object.fromEntries(
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          Object.entries(payload).filter(([_, value]) => value !== "")
+          Object.entries(payload).filter(
+            ([_, value]) => value !== "" && value !== undefined && value !== null
+          )
         );
         createPatient.mutate(normalizedData, {
           onSuccess: () => {
@@ -400,6 +416,7 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
         //const selectedDate = value ? new Date(`${value}T00:00:00`) : undefined;
         const payload = {
           ...valuesToSubmit,
+          imageUrl,
           gender: valuesToSubmit.gender as Gender,
           maritalStatus: valuesToSubmit.maritalStatus as MaritalStatus,
           birthdate: new Date(`${valuesToSubmit.birthdate}T00:00:00`),
@@ -412,7 +429,7 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
 
         const normalizedData = Object.fromEntries(
           Object.entries(payload).filter(([key, value]) => {
-            if (value == null) return false;
+            if (value == null && key !== "imageUrl") return false;
             if (value === "" && keysToIgnoreEmpty.includes(key)) return false; // ignorar estos vacíos
             return true; // incluir strings vacíos
           })
@@ -437,6 +454,7 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
       setLoading(false);
     } catch (error) {
       console.error(error);
+      toast.error("No se pudo cargar la fotografía del paciente.");
       setLoading(false);
     }
   };
@@ -489,6 +507,16 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
           <div className="flex flex-col p-2 gap-5 flex-1 self-center">
             <div className="grid grid-cols-1 md:grid-cols-2 p-2 md:p-6 items-center gap-2">
               {/* Datos personales */}
+              <PatientPhotoField
+                imageUrl={watch("imageUrl")}
+                disabled={isViewMode}
+                onChange={(file) => {
+                  setSelectedPhoto(file);
+                  if (file === null) {
+                    setValue("imageUrl", null, { shouldDirty: true });
+                  }
+                }}
+              />
               <InputWithHelper
                 id="firstName"
                 label="Nombres"

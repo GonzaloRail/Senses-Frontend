@@ -1,6 +1,26 @@
 import api from "@/api/api";
 import type { Patient } from "@/shared/interfaces/models";
 
+type PatientImageUploadResponse = {
+  url: string;
+  filePath: string;
+};
+
+export const uploadPatientImageApi = async (image: File) => {
+  const formData = new FormData();
+  formData.append("image", image);
+
+  const { data } = await api.post<PatientImageUploadResponse>(
+    "/api/v1/patients/upload-image",
+    formData
+  );
+
+  // Google Drive's webViewLink is an HTML preview, not an image resource.
+  return data.url.includes("drive.google.com")
+    ? `https://drive.google.com/uc?export=view&id=${data.filePath}`
+    : data.url;
+};
+
 export interface PatientsPaginatedQuery {
   page: number;
   take: number;

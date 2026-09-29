@@ -74,9 +74,24 @@ export const ClinicalHistoryInformation = () => {
           <SidebarTrigger className="-ml-1 cursor-pointer mt-4" />
         </div>
         <div className="flex flex-col w-full items-center px-4 ">
-          <h1 className="scroll-m-20 text-center text-3xl font-extrabold tracking-tight text-balance text-senses-primary lg:text-4xl">
-            {patient?.firstName} {patient?.lastName}
-          </h1>
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center">
+            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border-4 border-white bg-senses-primary shadow-md">
+              {patient?.imageUrl ? (
+                <img
+                  src={patient.imageUrl}
+                  alt={`Fotografía de ${patient.firstName} ${patient.lastName}`}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center text-2xl font-bold text-white">
+                  {`${patient?.firstName?.[0] ?? ""}${patient?.lastName?.[0] ?? ""}` || "P"}
+                </span>
+              )}
+            </div>
+            <h1 className="scroll-m-20 text-center text-3xl font-extrabold tracking-tight text-balance text-senses-primary lg:text-4xl">
+              {patient?.firstName} {patient?.lastName}
+            </h1>
+          </div>
           <div className="flex flex-col mt-3 w-fit">
             <TextWithLabel
               label="DNI"

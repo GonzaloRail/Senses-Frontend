@@ -23,6 +23,7 @@ export interface Patient {
   phoneNumber: string;
   isActive: boolean;
   address: string;
+  imageUrl?: string | null;
 
   parentFullName?: string;
   parentDni?: string;

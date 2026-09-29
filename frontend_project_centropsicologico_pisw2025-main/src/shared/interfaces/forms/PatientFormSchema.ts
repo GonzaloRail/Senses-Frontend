@@ -28,6 +28,7 @@ export const patientFormSchema = z.object({
   phoneNumber: z.string().min(6, "El teléfono es obligatorio"),
   isActive: z.boolean().optional(),
   address: z.string().min(1, "La dirección es obligatoria"),
+  imageUrl: z.string().url().nullable().optional(),
 
   parentFullName: z.coerce.string().optional(),
   parentDni: z.coerce.string().optional(),
