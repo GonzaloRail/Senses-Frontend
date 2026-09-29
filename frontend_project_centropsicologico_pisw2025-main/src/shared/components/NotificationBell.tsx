@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Bell, CheckCheck } from "lucide-react";
 import { io, Socket } from "socket.io-client";
-import api from "@/api/api";
+import api, { API_BASE_URL } from "@/api/api";
 import { useAuth } from "@/store/auth/auth.store";
 import { toast } from "sonner";
 import {
@@ -43,12 +43,7 @@ export const NotificationBell = () => {
 
     fetchNotifications();
 
-    // Conectar WebSocket
-    const BASE_URL = import.meta.env.MODE === 'production'
-      ? "https://senses-backend-n8x5.onrender.com"
-      : "http://localhost:5000";
-
-    const socket: Socket = io(BASE_URL, {
+    const socket: Socket = io(API_BASE_URL, {
       auth: { token: accessToken }
     });
 

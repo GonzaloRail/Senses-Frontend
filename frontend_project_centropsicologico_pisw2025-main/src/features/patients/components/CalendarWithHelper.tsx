@@ -48,7 +48,6 @@ export const CalendarWithHelper = forwardRef<
 
     // Si es modo solo lectura, mostrar como div estático
     if (readOnly) {
-      console.log(value);
       return (
         <div className="grid gap-2 my-2 w-full max-w-md">
           <Label className="font-normal">{label}</Label>
@@ -94,7 +93,6 @@ export const CalendarWithHelper = forwardRef<
               selected={selectedDate}
               onSelect={(date) => {
                 setOpen(false);
-                console.log(date);
                 if (date && onChange) {
                   onChange(format(date, "yyyy-MM-dd"));
                 }

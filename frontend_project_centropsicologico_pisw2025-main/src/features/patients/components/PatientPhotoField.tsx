@@ -12,6 +12,7 @@ type PatientPhotoFieldProps = {
   imageUrl?: string | null;
   disabled?: boolean;
   onChange: (file: File | null) => void;
+  onImageUrlChange: (url: string) => void;
 };
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -20,6 +21,7 @@ export const PatientPhotoField = ({
   imageUrl,
   disabled = false,
   onChange,
+  onImageUrlChange,
 }: PatientPhotoFieldProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -99,6 +101,20 @@ export const PatientPhotoField = ({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleImageUrlChange = (value: string) => {
+    setCameraError(null);
+    onImageUrlChange(value);
+  };
+
+  const validateImageUrl = () => {
+    if (!imageUrl) return;
+    try {
+      new URL(imageUrl);
+    } catch {
+      setCameraError("Ingresa una URL de imagen válida.");
+    }
+  };
+
   return (
     <div className="md:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -114,7 +130,7 @@ export const PatientPhotoField = ({
         <div className="flex flex-1 flex-col gap-2">
           <div>
             <p className="font-medium text-[#0B2035]">Fotografía del paciente</p>
-            <p className="text-sm text-slate-500">Sube una imagen o tómala con la cámara web.</p>
+            <p className="text-sm text-slate-500">Sube una imagen, tómala con la cámara web o usa una URL.</p>
           </div>
           {!disabled && (
             <div className="flex flex-wrap gap-2">
@@ -130,6 +146,16 @@ export const PatientPhotoField = ({
                 </Button>
               )}
             </div>
+          )}
+          {!disabled && (
+            <input
+              type="url"
+              value={imageUrl ?? ""}
+              onChange={(event) => handleImageUrlChange(event.target.value)}
+              onBlur={validateImageUrl}
+              placeholder="https://ejemplo.com/foto.jpg"
+              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            />
           )}
           {cameraError && <p className="text-sm text-destructive">{cameraError}</p>}
         </div>

@@ -3,12 +3,12 @@ import axios from "axios";
 import { getAuth, setAuth } from "@/store/auth/auth.store";
 import { queryClient } from "@/lib/queryClient";
 
-const BASE_URL = import.meta.env.MODE === 'production'
-  ? "https://senses-backend-n8x5.onrender.com"
-  : "http://localhost:5000";
+export const API_BASE_URL =
+  import.meta.env.VITE_API_URL ??
+  "https://senses-backend-n8x5.onrender.com";
 
 const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_BASE_URL,
   withCredentials: true, // para enviar cookies
 });
 

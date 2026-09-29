@@ -125,14 +125,14 @@ export const IngresosList = () => {
                     </div>
                   </div>
                   {viewMode === "all" && (
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <div className="flex items-center gap-2">
                         <label className="text-xs font-semibold text-muted-foreground">Filtrar por mes</label>
                         <Input
                           type="month"
                           value={selectedMonth}
                           onChange={(e) => setSelectedMonth(e.target.value)}
-                          className="w-44 h-8 text-sm"
+                          className="h-9 w-60 min-w-60 shrink-0 text-sm"
                         />
                       </div>
                       <span className="text-xs text-muted-foreground">

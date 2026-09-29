@@ -68,16 +68,11 @@ export const AppRouter = () => {
   const accessToken = useAuth((state) => state.accessToken);
   const roleNameSelected = useAuth((state) => state.roleSelected);
   const isAuthBootstrapped = useAuth((state) => state.isAuthBootstrapped);
-  const user = useAuth((state) => state.user);       
-  console.log("userZustand", user);
   const { Spinner } = useSpinner({ initialLoading: true });
   useBootstrapAuth();
   if (!isAuthBootstrapped) {
     return <Spinner />;
   }
-
-  //console.log("accessTokenZustand", accessToken);
-  //console.log("roleSelectedZustand", roleNameSelected);
 
   return (
     <Routes>
@@ -181,7 +176,7 @@ export const AppRouter = () => {
                 <Route path="patient/:id" element={<PatientInformation />} />
               </Route>
 
-              {/* Rutas solo para admisión */}
+              {/* Operaciones de admisión */}
               <Route element={<ProtectedRoute allowedRoles={["ADMISSION"]} />}>
                 <Route path="patients/create" element={<CreatePatient />} />
                 <Route path="appointments/" element={<AppointmentsList />} />
@@ -194,7 +189,6 @@ export const AppRouter = () => {
                   path="create-appointment"
                   element={<CreateAppointment />}
                 />
-                <Route path="my-expenses/" element={<MyExpensesPage />} />
               </Route>
 
               {/* Rutas compartidas por Gerencia y Recursos Humanos */}
@@ -245,9 +239,13 @@ export const AppRouter = () => {
               {/* Operaciones de Caja y Registro */}
               <Route element={<ProtectedRoute allowedRoles={["CASHIER"]} />}>
                 <Route path="ingresos/create" element={<CreateIngreso />} />
-                <Route path="my-expenses/" element={<MyExpensesPage />} />
                 <Route path="inventory/create" element={<AssetForm />} />
                 <Route path="inventory/:id/edit" element={<AssetForm />} />
+              </Route>
+
+              {/* Registro de egresos para admisión y caja */}
+              <Route element={<ProtectedRoute allowedRoles={["ADMISSION", "CASHIER"]} />}>
+                <Route path="my-expenses/" element={<MyExpensesPage />} />
               </Route>
 
               {/* Consultas operativas de Gerencia y gestión de Caja */}

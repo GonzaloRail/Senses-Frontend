@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import axios from "axios";
 import {
   patientFormSchema,
   type PatientFormSchema,
@@ -227,7 +228,7 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
     setError,
     clearErrors,
     getValues,
-    formState: { errors },
+    formState: { errors, dirtyFields },
   } = methods;
 
   const [mode, setMode] = useState<FormMode>(() => {
@@ -237,7 +238,6 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
 
   useEffect(() => {
     if (data) {
-      console.log("datainicial", data);
       reset({
         ...data,
         birthdate: data.birthdate
@@ -375,8 +375,6 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
         : values.imageUrl;
 
       if (mode === "create") {
-        console.log("valores", getValues());
-
         // Antes de enviar al backend:
         const valuesToSubmit = showComplementary
           ? values
@@ -400,61 +398,75 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
             ([_, value]) => value !== "" && value !== undefined && value !== null
           )
         );
-        createPatient.mutate(normalizedData, {
-          onSuccess: () => {
-            navigate("/patients");
-          },
-        });
-
-        // enviar payload al backend
-        //navigate("/patients");
+        await createPatient.mutateAsync(normalizedData);
+        navigate("/patients");
       } else {
-        console.log("llega aquí");
         const valuesToSubmit = showComplementary
           ? values
           : removeComplementaryFields(values);
-        //const selectedDate = value ? new Date(`${value}T00:00:00`) : undefined;
+        const dirtyValues = Object.fromEntries(
+          Object.entries(valuesToSubmit).filter(([key]) =>
+            Boolean((dirtyFields as Record<string, unknown>)[key])
+          )
+        );
+        const imageWasChanged =
+          selectedPhoto !== undefined || Boolean(dirtyFields.imageUrl);
         const payload = {
-          ...valuesToSubmit,
-          imageUrl,
-          gender: valuesToSubmit.gender as Gender,
-          maritalStatus: valuesToSubmit.maritalStatus as MaritalStatus,
-          birthdate: new Date(`${valuesToSubmit.birthdate}T00:00:00`),
-          provinceId: "",
-          regionId: "",
-          clinicalHistoryId: "",
+          ...dirtyValues,
+          ...(imageWasChanged && { imageUrl }),
+          ...(dirtyFields.gender && {
+            gender: valuesToSubmit.gender as Gender,
+          }),
+          ...(dirtyFields.maritalStatus && {
+            maritalStatus: valuesToSubmit.maritalStatus as MaritalStatus,
+          }),
+          ...(dirtyFields.birthdate && {
+            birthdate: new Date(`${valuesToSubmit.birthdate}T00:00:00`),
+          }),
         };
-
-        const keysToIgnoreEmpty = ["provinceId", "regionId", "clinicalHistoryId"];
 
         const normalizedData = Object.fromEntries(
           Object.entries(payload).filter(([key, value]) => {
             if (value == null && key !== "imageUrl") return false;
-            if (value === "" && keysToIgnoreEmpty.includes(key)) return false; // ignorar estos vacíos
-            return true; // incluir strings vacíos
+            return true;
           })
         );
 
-        console.log("normalized", normalizedData);
-        updatePatient.mutate(
-          {
-            id: patientId ?? "",
-            patientToUpdate: normalizedData,
-          },
-          {
-            onSuccess: () => {
-              // setMode("view");
-              navigate("/patients");
-            },
-          }
-        );
-
-        console.log("fecha", payload.birthdate);
+        await updatePatient.mutateAsync({
+          id: patientId ?? "",
+          patientToUpdate: normalizedData,
+        });
+        navigate("/patients");
       }
       setLoading(false);
     } catch (error) {
       console.error(error);
-      toast.error("No se pudo cargar la fotografía del paciente.");
+      const responseData = axios.isAxiosError(error) ? error.response?.data : undefined;
+      const validationMessage =
+        responseData &&
+        typeof responseData === "object" &&
+        "errors" in responseData &&
+        Array.isArray(responseData.errors)
+          ? (responseData.errors as unknown[])
+              .filter(
+                (item): item is { message: string } =>
+                  typeof item === "object" &&
+                  item !== null &&
+                  "message" in item &&
+                  typeof item.message === "string"
+              )
+              .map((item) => item.message)
+              .join(" ")
+          : undefined;
+      const message =
+        validationMessage ||
+        (responseData &&
+        typeof responseData === "object" &&
+        "message" in responseData &&
+        typeof responseData.message === "string"
+          ? responseData.message
+          : "No se pudo guardar el paciente.");
+      toast.error(message);
       setLoading(false);
     }
   };
@@ -477,7 +489,6 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
     const today = new Date();
     const [date] = birthdate.split("T");
     const [year, month, day] = date.split("-").map(Number);
-    console.log(year, month, day);
     if (!year || !month || !day) return "";
     let age = today.getFullYear() - year;
     const m = today.getMonth() + 1 - month;
@@ -490,8 +501,6 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
   if (loading) {
     return <Loading message="Cargando información de paciente..." />;
   }
-  console.log(errors);
-
   return (
     <FormProvider {...methods}>
       <div className="h-screen flex flex-col">
@@ -515,6 +524,10 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
                   if (file === null) {
                     setValue("imageUrl", null, { shouldDirty: true });
                   }
+                }}
+                onImageUrlChange={(url) => {
+                  setSelectedPhoto(undefined);
+                  setValue("imageUrl", url || null, { shouldDirty: true });
                 }}
               />
               <InputWithHelper
@@ -1154,17 +1167,15 @@ export const PatientForm = ({ data, patientId }: PatientFormProps) => {
                 >
                   Volver
                 </Button>
-                {roleSelected !== "ADMIN" && (
-                  <Button
-                    onClick={handleEdit}
-                    className="flex items-center gap-2"
-                    disabled={loading}
-                    type="button"
-                  >
-                    <Edit className="h-4 w-4" />
-                    Editar
-                  </Button>
-                )}
+                <Button
+                  onClick={handleEdit}
+                  className="flex items-center gap-2"
+                  disabled={loading}
+                  type="button"
+                >
+                  <Edit className="h-4 w-4" />
+                  Editar
+                </Button>
               </>
             )}
             {(mode === "edit" || mode === "create") && (

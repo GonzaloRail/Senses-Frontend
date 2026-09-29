@@ -15,6 +15,31 @@ import {
   PAYMENT_METHOD_TO_BACKEND,
 } from "../utils/ingresosUtils";
 
+export type PatientBillingContext = {
+  patient: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    dni: string;
+    phoneNumber: string;
+    parentFullName: string | null;
+    parentDni: string | null;
+    parentPhoneNumber: string | null;
+    clinicalHistoryNumber: number;
+  };
+  appointments: Array<{
+    id: string;
+    startDate: string;
+    psychologistName: string;
+    paymentStatus: string | null;
+    status: string;
+    type: string;
+    serviceId: string | null;
+    serviceName: string | null;
+    agreedAmount: number | null;
+  }>;
+};
+
 const ATTENTION_MAP: Record<string, string> = {
   PARTICULAR: "Particular",
   SOCIAL: "Social",
@@ -92,6 +117,13 @@ function mapBackendChangeRequest(item: any): ChangeRequest {
 }
 
 export const ingresosApi = {
+  async getPatientBillingContext(patientId: string): Promise<PatientBillingContext> {
+    const response = await api.get(
+      `/api/v1/accounting/patients/${patientId}/billing-context`
+    );
+    return response.data;
+  },
+
   async getAll(): Promise<IncomeReceipt[]> {
     const response = await api.get("/api/v1/accounting/incomes", {
       params: { page: 1, take: 100 },

@@ -6,9 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { PatientSearchSelect } from "@/features/appointments/components/PatientSearchSelect";
 import { usePatientSearchQuery } from "@/features/patients/hooks";
-import { getAppointmentsByPatientApi } from "@/features/appointments/api/appointmentsApi";
-import { getPatientByIdApi } from "@/features/patients/api/patientsApi";
 import { useAccountingServices } from "../hooks/useIngresosQueries";
+import { ingresosApi } from "../api/ingresosApi";
 import { AppointmentPaymentList } from "./AppointmentPaymentList";
 import type { AppointmentItem } from "./AppointmentPaymentList";
 import { money, PAYMENT_METHODS, calculateIGV, ATTENTION_TYPES } from "../utils/ingresosUtils";
@@ -39,9 +38,15 @@ export const IngresoForm = ({ onSubmit, onCancel, isPending }: Props) => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [amounts, setAmounts] = useState<Record<string, number>>({});
   const [psychologistName, setPsychologistName] = useState("");
+  const [patientLoadError, setPatientLoadError] = useState<string | undefined>();
   const payerInitialized = useRef(false);
 
-  const { patients, isLoading: searchingPatient, setSearchFilters } = usePatientSearchQuery();
+  const {
+    patients,
+    isLoading: searchingPatient,
+    error: patientSearchError,
+    setSearchFilters,
+  } = usePatientSearchQuery();
   const { data: services = [] } = useAccountingServices();
 
   const patientOptions = patients.map((p: any) => ({
@@ -78,41 +83,38 @@ export const IngresoForm = ({ onSubmit, onCancel, isPending }: Props) => {
     setPsychologistName("");
     setServiceDescription("");
     setAttentionType("Particular");
+    setPatientLoadError(undefined);
     payerInitialized.current = false;
-
-    let full: any = null;
-    try {
-      full = await getPatientByIdApi({ id: p.id });
-      setFullPatient(full);
-      if (full?.phoneNumber) setPhone(full.phoneNumber);
-      if (full?.clinicalHistory?.displayInt) {
-        setPatientDoc(`HCL-${full.clinicalHistory.displayInt}`);
-      }
-    } catch {
-    }
-
-    const hasParent = full?.parentFullName?.trim();
-    const defaultPayer: PayerType = hasParent ? "parent" : "patient";
-    setPayerType(defaultPayer);
-    payerInitialized.current = true;
-    applyPayerData(defaultPayer, full ?? p);
 
     setLoadingApps(true);
     try {
-      const apps = await getAppointmentsByPatientApi(patientId);
-      const mapped: AppointmentItem[] = (apps ?? []).map((a: any) => ({
-        id: a.resource.id,
-        startDate: a.startDate,
-        psychologistName: a.resource.psychologistName,
-        paymentStatus: a.resource.paymentStatus,
-        status: a.resource.status,
-        type: a.resource.type,
+      // Cashier has access to this accounting endpoint, unlike the general
+      // patient-detail and appointment routes used before.
+      const context = await ingresosApi.getPatientBillingContext(patientId);
+      const full = context.patient;
+      setFullPatient(full);
+      if (full?.phoneNumber) setPhone(full.phoneNumber);
+      const hasParent = full.parentFullName?.trim();
+      const defaultPayer: PayerType = hasParent ? "parent" : "patient";
+      setPayerType(defaultPayer);
+      payerInitialized.current = true;
+      applyPayerData(defaultPayer, full);
+
+      const mapped: AppointmentItem[] = context.appointments.map((appointment) => ({
+        ...appointment,
+        serviceId: appointment.serviceId ?? undefined,
+        serviceName: appointment.serviceName ?? undefined,
+        agreedAmount: appointment.agreedAmount ?? undefined,
       }));
       setAppointments(mapped);
       if (mapped.length > 0) {
         setPsychologistName(mapped[0].psychologistName);
       }
     } catch {
+      setPatientLoadError(
+        "No se pudo cargar la información de facturación del paciente. Intenta nuevamente."
+      );
+      setFullPatient(null);
       setAppointments([]);
     } finally {
       setLoadingApps(false);
@@ -121,7 +123,12 @@ export const IngresoForm = ({ onSubmit, onCancel, isPending }: Props) => {
 
   const handlePayerTypeChange = useCallback((type: PayerType) => {
     setPayerType(type);
-    if (type === "other") return;
+    if (type === "other") {
+      setClientName("");
+      setClientDni("");
+      setPhone("");
+      return;
+    }
     applyPayerData(type, fullPatient ?? selectedPatient);
   }, [fullPatient, selectedPatient, applyPayerData]);
 
@@ -191,6 +198,11 @@ export const IngresoForm = ({ onSubmit, onCancel, isPending }: Props) => {
             onSearch={(filters) => setSearchFilters(filters)}
             options={patientOptions}
             loading={searchingPatient}
+            error={
+              patientSearchError
+                ? "No se pudo buscar pacientes. Verifica la conexión con la API."
+                : patientLoadError
+            }
           />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -213,20 +225,22 @@ export const IngresoForm = ({ onSubmit, onCancel, isPending }: Props) => {
               <Label className="text-xs">Cliente</Label>
               <Input
                 value={clientName}
-                onChange={(e) => { setClientName(e.target.value); if (payerType === "patient" || payerType === "parent") setPayerType("other"); }}
+                onChange={(e) => setClientName(e.target.value)}
+                readOnly={payerType !== "other"}
                 placeholder="Nombre de quien paga"
-                className="h-8"
+                className="h-8 read-only:bg-muted"
               />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">DNI del cliente</Label>
               <Input
                 value={clientDni}
-                onChange={(e) => { setClientDni(e.target.value.replace(/\D/g, "")); if (payerType === "patient" || payerType === "parent") setPayerType("other"); }}
+                onChange={(e) => setClientDni(e.target.value.replace(/\D/g, ""))}
+                readOnly={payerType !== "other"}
                 maxLength={8}
                 inputMode="numeric"
                 placeholder="DNI del cliente"
-                className="h-8"
+                className="h-8 read-only:bg-muted"
               />
             </div>
             <div className="space-y-1">
@@ -267,11 +281,12 @@ export const IngresoForm = ({ onSubmit, onCancel, isPending }: Props) => {
               <Label className="text-xs">Celular</Label>
               <Input
                 value={phone}
-                onChange={(e) => { setPhone(e.target.value.replace(/\D/g, "")); if (payerType === "patient" || payerType === "parent") setPayerType("other"); }}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                readOnly={payerType !== "other"}
                 maxLength={9}
                 inputMode="numeric"
                 placeholder="Número de celular"
-                className="h-8"
+                className="h-8 read-only:bg-muted"
               />
             </div>
             <div className="space-y-1">
@@ -279,7 +294,7 @@ export const IngresoForm = ({ onSubmit, onCancel, isPending }: Props) => {
               <Input value={patientName} disabled className="bg-muted h-8 text-xs" />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">DNI - HCL del paciente</Label>
+              <Label className="text-xs">Historia clínica</Label>
               <Input value={patientDoc} disabled className="bg-muted h-8 text-xs" />
             </div>
             <div className="space-y-1">
