@@ -50,8 +50,59 @@ export const CommissionsPage = () => {
   const commissions = data?.data || [];
   const meta = data?.meta;
 
-  const handleExport = () => {
-    alert("Funcionalidad de exportación simulada (PDF/Excel) - En desarrollo Backend");
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const firstPage = await getCommissionsApi({ page: 1, take: 100, status: statusFilter !== "all" ? statusFilter : undefined });
+      const remainingPages = Array.from(
+        { length: Math.max(firstPage.meta.totalPages - 1, 0) },
+        (_, index) => index + 2
+      );
+      const remainingResponses = await Promise.all(
+        remainingPages.map((p) => getCommissionsApi({ page: p, take: 100, status: statusFilter !== "all" ? statusFilter : undefined }))
+      );
+      
+      const allCommissions = [
+        ...firstPage.data,
+        ...remainingResponses.flatMap((res) => res.data),
+      ];
+
+      const csvValue = (value: unknown) => {
+        const normalized = value == null ? "" : String(value);
+        return `"${normalized.replace(/"/g, '""')}"`;
+      };
+
+      const headers = ["Periodo", "Psicologo", "% Comision", "Ingreso Bruto", "Comision a Pagar", "Neto Senses", "Estado"].map(csvValue).join(",");
+      
+      const rows = allCommissions.map(c => {
+        const periodo = c.monthlyClose ? `${MONTHS[c.monthlyClose.month - 1]} ${c.monthlyClose.year}` : "N/A";
+        const psicologo = c.psychologist ? `${c.psychologist.firstName} ${c.psychologist.lastName}` : "Desconocido";
+        const porcentaje = `${Number(c.commissionRate)}%`;
+        const bruto = Number(c.grossIncome).toFixed(2);
+        const comision = Number(c.commissionAmount).toFixed(2);
+        const neto = Number(c.sensesAmount).toFixed(2);
+        const estado = c.paymentStatus === "PAID" ? "PAGADO" : c.paymentStatus === "READY_FOR_PAYMENT" ? "LISTO PARA PAGO" : "PENDIENTE";
+        
+        return [periodo, psicologo, porcentaje, bruto, comision, neto, estado].map(csvValue).join(",");
+      });
+
+      const csv = [headers, ...rows].join("\n");
+      const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Reporte_Comisiones_${new Date().getTime()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error("Error al exportar las comisiones");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handlePay = (id: string) => {
@@ -87,8 +138,8 @@ export const CommissionsPage = () => {
               </Select>
             </div>
 
-            <Button onClick={handleExport} className="bg-emerald-600 hover:bg-emerald-700 h-10">
-              <Download className="mr-2 h-4 w-4" /> Exportar Reporte
+            <Button onClick={handleExport} disabled={isExporting} className="bg-emerald-600 hover:bg-emerald-700 h-10">
+              <Download className="mr-2 h-4 w-4" /> {isExporting ? "Exportando..." : "Exportar Reporte"}
             </Button>
           </div>
 
