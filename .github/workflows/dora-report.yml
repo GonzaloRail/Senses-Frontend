@@ -1,0 +1,180 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# dora-report — calcula las métricas y las publica
+#
+# Cuándo corre: cada lunes 13:00 UTC, o a mano (Actions → dora-report →
+# Run workflow, eligiendo la ventana en días).
+# Dónde se ve: pestaña Actions → run → Summary (tabla) y artefacto `dora.json`.
+# No escribe nada en el repo: solo lee runs, PRs, ramas y etiquetas.
+#
+# Qué calcula (ventana = últimos N días):
+#
+#  ENTREGA
+#   Deployment Frequency = deploys / semanas
+#       deploys = runs de deploy-log.yml sobre main en la ventana
+#   Lead Time for Changes = mediana de (merge del PR − primer commit del PR), en horas
+#       Aproximación: mide hasta el merge, no hasta que el deploy termina
+#       (Render/Vercel despliegan minutos después del merge).
+#   Change Failure Rate  = (deploys fallidos + PRs remediales) / deploys × 100
+#       fallido  = run de deploy-log en rojo
+#       remedial = PR mergeado con etiqueta hotfix o rollback, o título "Revert…"
+#   Rework Rate          = PRs remediales / PRs mergeados a main × 100
+#
+#  FLUJO DE RAMAS
+#   Ramas creadas        = runs de repo-events con evento `create`
+#   PRs mergeados        = PRs mergeados a main en la ventana
+#   PRs con conflicto    = PRs creados en la ventana que tienen etiqueta conflict
+#   Tamaño de PR         = líneas (additions + deletions); mediana y nº de PRs
+#                          que superan BIG_PR líneas (los grandes fallan más)
+#   Ramas abandonadas    = ramas (salvo la default) cuyo último commit tiene
+#                          más de STALE_DAYS días; se lista también la más vieja
+#
+#  COSTO
+#   Minutos de Actions   = suma de la duración de todos los runs de la ventana,
+#                          redondeando cada run hacia arriba al minuto. Es una
+#                          ESTIMACIÓN (GitHub factura por job, no por run); la
+#                          cifra oficial está en Settings → Billing. Solo
+#                          importa en repos privados (cuota Free ≈ 2000 min/mes).
+#
+# Límites: un deploy fallido que además genera hotfix cuenta dos veces en CFR
+# (aceptable para ver tendencia). Si no hay deploys o PRs, los valores salen en 0.
+# ─────────────────────────────────────────────────────────────────────────────
+name: dora-report
+
+on:
+  schedule:
+    - cron: "0 13 * * 1"       # lunes 13:00 UTC (solo corre desde la rama por defecto)
+  workflow_dispatch:
+    inputs:
+      days: { description: "Ventana en días", default: "30" }
+
+# Solo lectura: no necesita escribir en el repo.
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      DAYS: ${{ inputs.days || '30' }}     # por cron no hay input → 30 días
+      STALE_DAYS: "30"                     # rama sin commits más de N días = abandonada
+      BIG_PR: "500"                        # PR con más de N líneas cambiadas = grande
+    steps:
+      - name: Calcular métricas
+        run: |
+          # Fecha de inicio de la ventana y número de semanas (para la frecuencia).
+          SINCE=$(date -u -d "$DAYS days ago" +%F)
+          WEEKS=$(awk "BEGIN{print $DAYS/7}")
+
+          # Mediana en jq (lista vacía → 0) y redondeo a 1 decimal.
+          JQ_LIB='def med: sort | if length==0 then 0 else .[(length/2|floor)] end;
+                  def r1: . * 10 | round / 10;'
+
+          # --- Deploys: runs de deploy-log sobre main dentro de la ventana.
+          #     Si el workflow aún no existe o no tiene runs, se usa lista vacía.
+          runs=$(gh run list -w deploy-log.yml -b main -L 500 --json conclusion,createdAt \
+                 -q "[.[] | select(.createdAt >= \"$SINCE\")]" 2>/dev/null || echo '[]')
+          deploys=$(jq length <<<"$runs")
+          failed=$(jq '[.[] | select(.conclusion=="failure")] | length' <<<"$runs")
+
+          # --- PRs mergeados a main (una sola consulta alimenta varias métricas)
+          prs=$(gh pr list -s merged -B main -L 500 --search "merged:>=$SINCE" \
+                --json number,title,labels,mergedAt,additions,deletions)
+          merged=$(jq length <<<"$prs")
+
+          # Remediales = arreglo urgente o reversión (etiqueta hotfix/rollback o título Revert…)
+          remedial=$(jq '[.[] | select(
+              ([.labels[].name] | any(. == "hotfix" or . == "rollback"))
+              or (.title | test("^Revert"; "i"))
+            )] | length' <<<"$prs")
+
+          # --- Lead Time: horas entre el primer commit del PR y su merge (mediana).
+          #     El primer commit se pide por REST, uno por PR (pedirlo junto al
+          #     listado de PRs supera el límite de nodos de GraphQL).
+          lead_list=$(for n in $(jq -r '.[].number' <<<"$prs"); do
+              s=$(gh api "repos/$GH_REPO/pulls/$n/commits?per_page=1"                     -q '.[0].commit.author.date' 2>/dev/null) || continue
+              m=$(jq -r --argjson n "$n" '.[] | select(.number==$n) | .mergedAt' <<<"$prs")
+              echo "{\"s\":\"$s\",\"m\":\"$m\"}"
+            done | jq -s '.')
+          lead=$(jq "$JQ_LIB"'[.[] | ((.m|fromdateiso8601) - (.s|fromdateiso8601)) / 3600]
+                   | med | r1' <<<"$lead_list")
+
+          # --- Tamaño de PR: líneas añadidas + borradas
+          size_med=$(jq "$JQ_LIB"'[.[] | .additions + .deletions] | med' <<<"$prs")
+          size_big=$(jq --argjson n "$BIG_PR" '[.[] | select(.additions + .deletions > $n)] | length' <<<"$prs")
+
+          # --- Ramas creadas y PRs con conflicto
+          branches=$(gh run list -w repo-events.yml -e create -L 500 --json createdAt \
+                     -q "[.[] | select(.createdAt >= \"$SINCE\")] | length" 2>/dev/null || echo 0)
+          conflicts=$(gh pr list -s all -l conflict -L 500 --search "created:>=$SINCE" \
+                      --json number -q length)
+
+          # --- Ramas abandonadas: fecha del último commit de cada rama (GraphQL, 1 consulta).
+          #     Se excluye la rama por defecto (main).
+          OWNER=${GH_REPO%%/*}; NAME=${GH_REPO##*/}
+          heads=$(gh api graphql --paginate \
+            -f o="$OWNER" -f n="$NAME" \
+            -f query='query($o:String!,$n:String!,$endCursor:String){
+              repository(owner:$o,name:$n){
+                defaultBranchRef{name}
+                refs(refPrefix:"refs/heads/",first:100,after:$endCursor){
+                  nodes{name target{... on Commit{committedDate}}}
+                  pageInfo{hasNextPage endCursor}
+                }}}' \
+            --jq '.data.repository as $r | $r.refs.nodes[]
+                  | select(.name != $r.defaultBranchRef.name)
+                  | {name, date: .target.committedDate}' | jq -s '.')
+          stale_cut=$(date -u -d "$STALE_DAYS days ago" +%FT%TZ)
+          branches_total=$(jq length <<<"$heads")
+          stale=$(jq --arg c "$stale_cut" '[.[] | select(.date < $c)] | length' <<<"$heads")
+          oldest=$(jq -r 'sort_by(.date) | .[0] // empty | "\(.name) (\(.date[:10]))"' <<<"$heads")
+
+          # --- Minutos de Actions (estimación): duración de cada run, redondeada
+          #     hacia arriba al minuto, mínimo 1. Cuenta TODOS los workflows.
+          minutes=$(gh run list -L 1000 --json createdAt,startedAt,updatedAt \
+                    -q "[.[] | select(.createdAt >= \"$SINCE\")]" \
+                    | jq '[.[] | (((.updatedAt|fromdateiso8601) - (.startedAt|fromdateiso8601)) / 60
+                                  | ceil | if . < 1 then 1 else . end)] | add // 0')
+          # Proyección a 30 días para compararla con la cuota mensual.
+          minutes_30=$(awk "BEGIN{printf \"%.0f\", $minutes*30/$DAYS}")
+
+          # --- Aritmética: awk porque el runner no siempre trae bc.
+          #     pct evita dividir por cero (sin deploys/PRs devuelve 0).
+          pct() { if [ "$2" -gt 0 ]; then awk "BEGIN{printf \"%.1f\", 100*$1/$2}"; else echo 0; fi; }
+          df=$(awk "BEGIN{printf \"%.2f\", $deploys/$WEEKS}")
+          cfr=$(pct $((failed+remedial)) "$deploys")
+          rework=$(pct "$remedial" "$merged")
+
+          # --- Salida: tabla en el resumen del run (y en el log)
+          {
+            echo "### DORA — últimos $DAYS días ($GH_REPO)"
+            echo "| Métrica | Valor |"; echo "|---|---|"
+            echo "| Deployment Frequency | $df / semana ($deploys deploys) |"
+            echo "| Lead Time for Changes (mediana) | $lead h |"
+            echo "| Change Failure Rate | $cfr % ($failed fallidos + $remedial hotfix/rollback) |"
+            echo "| Rework Rate | $rework % ($remedial de $merged PRs) |"
+            echo "| Ramas creadas | $branches |"
+            echo "| PRs mergeados | $merged |"
+            echo "| PRs con conflicto | $conflicts |"
+            echo "| Tamaño de PR (mediana) | $size_med líneas; $size_big PRs de más de $BIG_PR |"
+            echo "| Ramas abandonadas (>$STALE_DAYS d) | $stale de $branches_total ${oldest:+— la más vieja: $oldest} |"
+            echo "| Minutos de Actions (estimado) | $minutes en $DAYS d (≈ $minutes_30 / 30 d) |"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+          # --- Salida: números crudos en JSON, para Excel o histórico propio
+          jq -n --arg repo "$GH_REPO" --arg since "$SINCE" \
+            --argjson deploys "$deploys" --argjson failed "$failed" \
+            --argjson merged "$merged" --argjson remedial "$remedial" \
+            --argjson branches "$branches" --argjson conflicts "$conflicts" \
+            --argjson lead_time_hours "$lead" \
+            --argjson pr_size_median "$size_med" --argjson pr_big "$size_big" \
+            --argjson branches_total "$branches_total" --argjson branches_stale "$stale" \
+            --argjson actions_minutes "$minutes" \
+            '$ARGS.named' > dora.json
+
+      # Guarda dora.json como artefacto descargable (se borra a los 90 días).
+      - uses: actions/upload-artifact@v4
+        with: { name: dora, path: dora.json }

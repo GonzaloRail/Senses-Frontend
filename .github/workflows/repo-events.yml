@@ -1,0 +1,53 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# repo-events — flujo de ramas y conflictos de merge
+#
+# Hace dos cosas independientes:
+#   1. branch-created: cada vez que se crea una rama deja un run. El reporte
+#      cuenta esos runs para dar la "frecuencia de ramas".
+#   2. conflict-label: marca con la etiqueta `conflict` los PRs abiertos que
+#      GitHub detecta en conflicto con su rama base. El reporte cuenta los PRs
+#      que alguna vez tuvieron esa etiqueta.
+#
+# Requiere: etiqueta `conflict` creada en el repo (si no existe, el job falla).
+# Solo tiene histórico desde el día en que se mergea este archivo.
+# ─────────────────────────────────────────────────────────────────────────────
+name: repo-events
+
+on:
+  create:                      # se creó una rama o un tag
+  pull_request:
+    types: [opened, reopened, synchronize]   # PR nuevo o con commits nuevos
+  push:
+    branches: [main]           # main avanzó: otros PRs abiertos pueden quedar en conflicto
+
+# Principio de mínimo privilegio: leer código y editar etiquetas de PRs.
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # --- 1. Frecuencia de ramas -------------------------------------------------
+  branch-created:
+    # `create` también dispara con tags; nos quedamos solo con ramas.
+    if: github.event_name == 'create' && github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    steps:
+      # El run es el dato; esta línea solo deja quién y qué rama.
+      - run: echo "branch=${{ github.event.ref }} by ${{ github.actor }}" >> "$GITHUB_STEP_SUMMARY"
+
+  # --- 2. Detección de conflictos --------------------------------------------
+  conflict-label:
+    if: github.event_name != 'create'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - run: |
+          # GitHub calcula el campo `mergeable` de forma asíncrona; sin esta
+          # pausa casi siempre devuelve UNKNOWN justo después del evento.
+          sleep 20
+          # Lista PRs abiertos, se queda con los CONFLICTING y los etiqueta.
+          gh pr list --state open --json number,mergeable \
+            -q '.[] | select(.mergeable=="CONFLICTING") | .number' |
+          while read -r n; do gh pr edit "$n" --add-label conflict; done

@@ -1,0 +1,40 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# deploy-log — registro de despliegues (alimenta Deployment Frequency y CFR)
+#
+# Idea: Render (back) y Vercel (front) despliegan solos al hacer push a main.
+# GitHub no sabe que eso es un "deploy", así que este workflow lo deja anotado:
+#   - Cada push a main = 1 deploy  → el run en sí es el dato.
+#   - Run verde = el sitio respondió después del push.
+#   - Run rojo  = el sitio no respondió → cuenta como deploy fallido.
+#
+# No despliega nada ni bloquea nada: solo mide. No debe marcarse como check
+# obligatorio en la protección de la rama.
+#
+# Requiere: variable de repo HEALTH_URL (Settings → Secrets and variables →
+# Actions → Variables). Back: .../health   Front: URL de Vercel.
+# ─────────────────────────────────────────────────────────────────────────────
+name: deploy-log
+
+on:
+  push:
+    branches: [main]      # ← si el deploy sale de otra rama, cambiarla aquí
+  workflow_dispatch:      # permite lanzarlo a mano desde la pestaña Actions
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health check post-deploy
+        # --retry 40 × --retry-delay 15s ≈ hasta 10 min de espera.
+        # Render "duerme" el servicio y puede tardar en arrancar en frío.
+        # Limitación: puede responder la versión anterior mientras Render aún
+        # construye la nueva (mide "main quedó vivo", no "el deploy nuevo vive").
+        run: |
+          curl -fsS --retry 40 --retry-delay 15 --retry-all-errors \
+            --max-time 30 "${{ vars.HEALTH_URL }}" -o /dev/null
+
+      - name: Registro
+        # always(): se escribe el resumen aunque el health check haya fallado.
+        if: always()
+        run: |
+          echo "sha=${{ github.sha }} status=${{ job.status }} actor=${{ github.actor }}" >> "$GITHUB_STEP_SUMMARY"
