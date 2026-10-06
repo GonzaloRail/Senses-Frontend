@@ -1,15 +1,31 @@
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { StatCard } from "../components/StatCard";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, Pie, PieChart, XAxis } from "recharts";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { DashboardPsychologystListSchema } from "@/shared/interfaces/tables/DashboardPsychologystListSchema";
 import { DataTable } from "@/shared/components/DataTable";
-import { useEffect, useState } from "react";
-import { getActiveInternals, getAppointmentsByWeekday, getPatientsPerAgeGroups, getPsychologistsWithPatients, getSocialCasesPerMonth, getTotalHoursPerMonth, getTotalParticularCases, getTotalPatients, getTotalPsychologists, getTotalSocialCases } from "../api/dashboardApi";
+import { useEffect, useMemo, useState } from "react";
+import { getActiveInternals, getAppointmentsByWeekday, getPatientsPerAgeGroups, getPsychologistsWithPatients, getSocialCasesPerMonth, getTotalHoursPerMonth, getTotalParticularCases, getTotalPatients, getTotalPsychologists, getTotalSocialCases, type DashboardFilters } from "../api/dashboardApi";
 import { Loading } from "@/shared/components/Loading";
+import { searchPsychologistByName } from "@/features/systemUsers/api/systemUsersApi";
+import { searchOfficesByName } from "@/features/offices/api/officesApi";
+
+type Period = "day" | "month" | "year" | "custom";
+type FilterOption = { id: string; label: string };
+
+const toInputDate = (date: Date) => date.toISOString().slice(0, 10);
+
+const periodRange = (period: Period, customFrom: string, customTo: string) => {
+  const now = new Date();
+  if (period === "custom") return { from: customFrom, to: customTo };
+  const from = new Date(now);
+  if (period === "day") from.setHours(0, 0, 0, 0);
+  if (period === "month") from.setDate(1);
+  if (period === "year") from.setMonth(0, 1);
+  return { from: toInputDate(from), to: toInputDate(now) };
+};
 
 export const Dashboard = () => {
   const [psychologistNumber, setPsychologistNumber] = useState(0);
@@ -22,12 +38,39 @@ export const Dashboard = () => {
   const [patientsAgeGroups, setPatientsAgeGroups] = useState([]);
   const [psychologistWithPatients, setPsychologistWithPatients] = useState([]);
   const [appointmentsCountByRange, setAppointmentsCountByRange] = useState([]);
+  const [period, setPeriod] = useState<Period>("month");
+  const [customFrom, setCustomFrom] = useState(toInputDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
+  const [customTo, setCustomTo] = useState(toInputDate(new Date()));
+  const [psychologistId, setPsychologistId] = useState("");
+  const [officeId, setOfficeId] = useState("");
+  const [psychologists, setPsychologists] = useState<FilterOption[]>([]);
+  const [offices, setOffices] = useState<FilterOption[]>([]);
 
 
   const [isLoading, setIsLoading] = useState(true);
 
+  const filters = useMemo<DashboardFilters>(() => {
+    const range = periodRange(period, customFrom, customTo);
+    return {
+      from: range.from ? new Date(`${range.from}T00:00:00`).toISOString() : undefined,
+      to: range.to ? new Date(`${range.to}T23:59:59.999`).toISOString() : undefined,
+      psychologistId: psychologistId || undefined,
+      officeId: officeId || undefined,
+    };
+  }, [period, customFrom, customTo, psychologistId, officeId]);
+
+  useEffect(() => {
+    Promise.all([searchPsychologistByName(""), searchOfficesByName("")])
+      .then(([users, availableOffices]) => {
+        setPsychologists(users.map((user: { id: string; firstName: string; lastName: string }) => ({ id: user.id, label: `${user.firstName} ${user.lastName}` })));
+        setOffices(availableOffices.map((office: { id: string; name: string }) => ({ id: office.id, label: office.name })));
+      })
+      .catch(() => undefined);
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
         const [
           psychologistData,
@@ -41,16 +84,16 @@ export const Dashboard = () => {
           psychologistsWithPatientsData,
           appointmentsByWeekdayData,
         ] = await Promise.all([
-          getTotalPsychologists(),
-          getTotalPatients(),
-          getTotalHoursPerMonth(),
-          getSocialCasesPerMonth(),
-          getActiveInternals(),
-          getTotalSocialCases(),
-          getTotalParticularCases(),
-          getPatientsPerAgeGroups(),
-          getPsychologistsWithPatients(),
-          getAppointmentsByWeekday(),
+          getTotalPsychologists(filters),
+          getTotalPatients(filters),
+          getTotalHoursPerMonth(filters),
+          getSocialCasesPerMonth(filters),
+          getActiveInternals(filters),
+          getTotalSocialCases(filters),
+          getTotalParticularCases(filters),
+          getPatientsPerAgeGroups(filters),
+          getPsychologistsWithPatients(filters),
+          getAppointmentsByWeekday(filters),
         ]);
 
         setPsychologistNumber(psychologistData.count);
@@ -68,12 +111,11 @@ export const Dashboard = () => {
         console.error("Error al obtener datos del Dashboard:", error);
       } finally {
         setIsLoading(false);
-        console.log("grupos", patientsAgeGroups)
       }
     };
 
     fetchData();
-  }, []);
+  }, [filters]);
 
   const lineChartData = appointmentsCountByRange;
 
@@ -101,11 +143,10 @@ export const Dashboard = () => {
     },
   ]
 
-  const fetchData = async ({ pageIndex = 0, pageSize = 10 }) => {
-    const page = pageIndex + 1;
-    const take = pageSize;
-    console.log(page, take);
-    const data = psychologistWithPatients;
+  const fetchData = async () => {
+    const data = psychologistId
+      ? psychologistWithPatients.filter((psychologist: DashboardPsychologystListSchema) => psychologist.id === psychologistId)
+      : psychologistWithPatients;
     return {
       data: data,
       pageCount: 1,
@@ -127,7 +168,6 @@ export const Dashboard = () => {
   } satisfies ChartConfig
 
   const barChartData = patientsAgeGroups;
-  console.log(barChartData)
 
   const barChartConfig = {
     value: {
@@ -147,6 +187,37 @@ export const Dashboard = () => {
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
         <SidebarTrigger className="-ml-1 cursor-pointer mt-4" />
       </div>
+      <Card className="mx-4 mt-3 p-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <label className="grid gap-1 text-sm font-medium">
+            Período
+            <select value={period} onChange={(event) => setPeriod(event.target.value as Period)} className="h-9 rounded-md border bg-background px-3">
+              <option value="day">Diario</option>
+              <option value="month">Mensual</option>
+              <option value="year">Anual</option>
+              <option value="custom">Personalizado</option>
+            </select>
+          </label>
+          {period === "custom" && <>
+            <label className="grid gap-1 text-sm font-medium">Desde<input type="date" value={customFrom} max={customTo} onChange={(event) => setCustomFrom(event.target.value)} className="h-9 rounded-md border bg-background px-3" /></label>
+            <label className="grid gap-1 text-sm font-medium">Hasta<input type="date" value={customTo} min={customFrom} onChange={(event) => setCustomTo(event.target.value)} className="h-9 rounded-md border bg-background px-3" /></label>
+          </>}
+          <label className="grid gap-1 text-sm font-medium">
+            Psicólogo
+            <select value={psychologistId} onChange={(event) => setPsychologistId(event.target.value)} className="h-9 rounded-md border bg-background px-3">
+              <option value="">Todos</option>
+              {psychologists.map((psychologist) => <option key={psychologist.id} value={psychologist.id}>{psychologist.label}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-sm font-medium">
+            Consultorio
+            <select value={officeId} onChange={(event) => setOfficeId(event.target.value)} className="h-9 rounded-md border bg-background px-3">
+              <option value="">Todos</option>
+              {offices.map((office) => <option key={office.id} value={office.id}>{office.label}</option>)}
+            </select>
+          </label>
+        </div>
+      </Card>
       <div className="flex flex-row flex-wrap gap-1 p-4 justify-center">
         <StatCard title="Número de psicólogos" value={psychologistNumber} />
         <StatCard title="Número de pacientes" value={patientsNumber} />
@@ -158,9 +229,6 @@ export const Dashboard = () => {
         <Card className="p-3 lg:col-span-5 h-fit w-full">
           <div className="flex flex-row gap-1">
             <h3 className="text-3xl font-semibold text-senses-primary mr-3">Citas</h3>
-            <Button className="bg-senses-primary cursor-pointer">Semana</Button>
-{/*             <Button className="bg-senses-primary cursor-pointer" disabled>Mes</Button>
-            <Button className="bg-senses-primary cursor-pointer" disabled>Año</Button> */}
           </div>
           <CardContent>
             <ChartContainer config={lineChartConfig}>

@@ -1,51 +1,61 @@
 import api from "@/api/api";
 
-export const getTotalPsychologists = async () => {
-  const response = await api.get(`/api/v1/dashboard/psychologists`);
+export interface DashboardFilters {
+  from?: string;
+  to?: string;
+  psychologistId?: string;
+  officeId?: string;
+}
+
+const getDashboard = (path: string, filters?: DashboardFilters) =>
+  api.get(path, { params: filters });
+
+export const getTotalPsychologists = async (filters?: DashboardFilters) => {
+  const response = await getDashboard(`/api/v1/dashboard/psychologists`, filters);
   return response.data;
 };
 
-export const getTotalPatients = async () => {
-  const response = await api.get(`/api/v1/dashboard/patients`);
+export const getTotalPatients = async (filters?: DashboardFilters) => {
+  const response = await getDashboard(`/api/v1/dashboard/patients`, filters);
   return response.data;
 };
 
-export const getTotalHoursPerMonth = async () => {
-  const response = await api.get(`/api/v1/dashboard/total-hours`);
+export const getTotalHoursPerMonth = async (filters?: DashboardFilters) => {
+  const response = await getDashboard(`/api/v1/dashboard/total-hours`, filters);
   return response.data;
 };
 
-export const getSocialCasesPerMonth = async () => {
-  const response = await api.get(`/api/v1/dashboard/social-cases-month`);
+export const getSocialCasesPerMonth = async (filters?: DashboardFilters) => {
+  const response = await getDashboard(`/api/v1/dashboard/social-cases-month`, filters);
   return response.data;
 };
 
-export const getActiveInternals = async () => {
-  const response = await api.get(`/api/v1/dashboard/active-internals`);
+export const getActiveInternals = async (filters?: DashboardFilters) => {
+  const response = await getDashboard(`/api/v1/dashboard/active-internals`, filters);
   return response.data;
 };
 
-export const getTotalSocialCases = async () => {
-  const response = await api.get(`/api/v1/dashboard/social-cases`);
+export const getTotalSocialCases = async (filters?: DashboardFilters) => {
+  const response = await getDashboard(`/api/v1/dashboard/social-cases`, filters);
   return response.data;
 };
 
-export const getTotalParticularCases = async () => {
-  const response = await api.get(`/api/v1/dashboard/particular-cases`);
+export const getTotalParticularCases = async (filters?: DashboardFilters) => {
+  const response = await getDashboard(`/api/v1/dashboard/particular-cases`, filters);
   return response.data;
 };
 
-export const getPatientsPerAgeGroups = async () => {
-  const response = await api.get(`/api/v1/dashboard/patients-age-groups`);
+export const getPatientsPerAgeGroups = async (filters?: DashboardFilters) => {
+  const response = await getDashboard(`/api/v1/dashboard/patients-age-groups`, filters);
   return response.data;
 };
 
-export const getPsychologistsWithPatients = async () => {
-  const response = await api.get(`/api/v1/dashboard/psychologists-with-patients`);
+export const getPsychologistsWithPatients = async (filters?: DashboardFilters) => {
+  const response = await getDashboard(`/api/v1/dashboard/psychologists-with-patients`, filters);
   return response.data;
 };
 
-export const getAppointmentsByWeekday = async () => {
-  const response = await api.get(`/api/v1/dashboard/appointments-by-weekday`);
+export const getAppointmentsByWeekday = async (filters?: DashboardFilters) => {
+  const response = await getDashboard(`/api/v1/dashboard/appointments-by-weekday`, filters);
   return response.data;
 };
