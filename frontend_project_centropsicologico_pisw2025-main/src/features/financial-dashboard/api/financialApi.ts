@@ -4,6 +4,7 @@ import type {
   ExpenseByType,
   CashFlowData,
   CommissionByPsychologist,
+  MissingCommissionRate,
   DateMode,
   MockReceipt,
   MockExpense,
@@ -11,7 +12,8 @@ import type {
 import api from "@/api/api";
 import { ingresosApi } from "@/features/ingresos/api/ingresosApi";
 import { accountingExpensesApi } from "@/features/accounting/api/accountingExpensesApi";
-import { calculateCommissionsFromReceipts } from "../utils/commissions";
+import type { AccountingExpense } from "@/features/accounting/api/accountingExpensesApi";
+import { getCommissionReportApi } from "@/features/commissions/api/commissionsApi";
 import { PAYMENT_METHODS, EXPENSE_TYPES } from "../utils/mockData";
 
 export interface DashboardParams {
@@ -28,6 +30,7 @@ export interface DashboardData {
   expensesByType: ExpenseByType[];
   cashFlow: CashFlowData;
   commissions: CommissionByPsychologist[];
+  commissionWarnings: MissingCommissionRate[];
 }
 
 function getDateRange(dateMode: DateMode, selectedDate: Date, customFrom?: string, customTo?: string) {
@@ -53,7 +56,7 @@ function getDateRange(dateMode: DateMode, selectedDate: Date, customFrom?: strin
 
 function incomeToMock(item: import("@/shared/interfaces/models/IncomeReceipt").IncomeReceipt): MockReceipt {
   return {
-    id: item.id as any,
+    id: item.id,
     date: item.date,
     client: item.client,
     patient: item.patient,
@@ -67,7 +70,7 @@ function incomeToMock(item: import("@/shared/interfaces/models/IncomeReceipt").I
 
 function expenseToMock(item: import("@/features/accounting/api/accountingExpensesApi").AccountingExpense): MockExpense {
   return {
-    id: item.id as any,
+    id: item.id,
     date: item.createdAt?.slice(0, 10) ?? "",
     type: item.type ?? "Variable",
     concept: item.concept ?? "",
@@ -97,7 +100,7 @@ async function fetchOpeningBalance(toDate: string): Promise<number> {
 export async function fetchDashboardData(params: DashboardParams): Promise<DashboardData> {
   const dr = getDateRange(params.dateMode, params.selectedDate, params.customFrom, params.customTo);
 
-  const [incomeList, expenseResult, openingBalance] = await Promise.all([
+  const [incomeList, expenseResult, openingBalance, commissionReport] = await Promise.all([
     ingresosApi.getFiltered({
       dateFrom: dr.from, dateTo: dr.to,
       patient: "", client: "", psychologist: "",
@@ -107,12 +110,13 @@ export async function fetchDashboardData(params: DashboardParams): Promise<Dashb
       take: 200,
       startDate: new Date(dr.from).toISOString(),
       endDate: new Date(dr.to + "T23:59:59").toISOString(),
-    }).catch(() => ({ data: [] as any[] })),
+    }).catch(() => ({ data: [] as AccountingExpense[] })),
     fetchOpeningBalance(dr.from),
+    getCommissionReportApi({ dateFrom: dr.from, dateTo: dr.to }),
   ]);
 
   const exps: MockExpense[] = (expenseResult?.data ?? [])
-    .filter((e: any) => e.status === "APPROVED")
+    .filter((e) => e.status === "APPROVED")
     .map(expenseToMock);
 
   const receipts = incomeList.filter((r) => r.status !== "Anulado").map(incomeToMock);
@@ -121,14 +125,14 @@ export async function fetchDashboardData(params: DashboardParams): Promise<Dashb
   const totalExpenses = exps.reduce((s, e) => s + e.amount, 0);
   const availableBalance = Math.round((openingBalance + totalIncome - totalExpenses) * 100) / 100;
 
-  const commissions = calculateCommissionsFromReceipts(receipts);
+  const commissions = commissionReport.rows;
 
   const summary: FinancialSummary = {
     totalIncome,
     totalExpenses,
     openingBalance,
     availableBalance,
-    totalCommissions: commissions.reduce((s, c) => s + c.commission, 0),
+    totalCommissions: commissionReport.summary.commissionAmount,
     incomeCount: receipts.length,
     expensesCount: exps.length,
   };
@@ -168,5 +172,12 @@ export async function fetchDashboardData(params: DashboardParams): Promise<Dashb
     totalExpenses: exps.reduce((s, e) => s + e.amount, 0),
   };
 
-  return { summary, incomeByPayment, expensesByType, cashFlow, commissions };
+  return {
+    summary,
+    incomeByPayment,
+    expensesByType,
+    cashFlow,
+    commissions,
+    commissionWarnings: commissionReport.warnings,
+  };
 }

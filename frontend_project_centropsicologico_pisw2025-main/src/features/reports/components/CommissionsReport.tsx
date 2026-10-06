@@ -1,7 +1,8 @@
-import type { CommissionByPsychologist } from "@/shared/interfaces/models/Financial";
+import type { CommissionReportData } from "@/shared/interfaces/models/Financial";
+import { AlertTriangle } from "lucide-react";
 
 interface Props {
-  data: CommissionByPsychologist[];
+  data: CommissionReportData;
 }
 
 function money(n: number) {
@@ -9,43 +10,62 @@ function money(n: number) {
 }
 
 export const CommissionsReport = ({ data }: Props) => {
-  const active = data.filter((c) => c.grossIncome > 0);
-  const totalCommission = active.reduce((s, c) => s + c.commission, 0);
+  const rateLabel = (rates: CommissionReportData["rows"][number]["rateBreakdown"]) => {
+    const percentages = [...new Set(rates.map((rate) => rate.percentage))];
+    return percentages.length > 0
+      ? percentages.map((percentage) => `${percentage}%`).join(" / ")
+      : "—";
+  };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+    <div>
+      <div className="grid gap-3 border-b bg-muted/20 p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div><p className="text-xs font-bold uppercase text-muted-foreground">Ingreso bruto</p><p className="mt-1 text-xl font-extrabold">{money(data.summary.grossIncome)}</p></div>
+        <div><p className="text-xs font-bold uppercase text-muted-foreground">Comisiones</p><p className="mt-1 text-xl font-extrabold text-blue-600">{money(data.summary.commissionAmount)}</p></div>
+        <div><p className="text-xs font-bold uppercase text-muted-foreground">Margen neto</p><p className="mt-1 text-xl font-extrabold text-emerald-600">{money(data.summary.clinicNetAmount)}</p></div>
+        <div><p className="text-xs font-bold uppercase text-muted-foreground">Citas cobradas</p><p className="mt-1 text-xl font-extrabold">{data.summary.paidAppointmentsCount}</p></div>
+      </div>
+
+      {data.warnings.length > 0 && (
+        <div className="m-4 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
+          <div className="flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Porcentajes pendientes de configuración</div>
+          {data.warnings.map((warning) => (
+            <p key={warning.psychologistId} className="text-sm">
+              {`${warning.firstName} ${warning.lastName}`.trim()}: {warning.message}
+            </p>
+          ))}
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
         <thead>
           <tr className="bg-muted/50">
             <th className="p-3 text-left font-bold text-muted-foreground">Psicólogo</th>
-            <th className="p-3 text-right font-bold text-muted-foreground">% Com.</th>
+            <th className="p-3 text-center font-bold text-muted-foreground">Citas cobradas</th>
+            <th className="p-3 text-right font-bold text-muted-foreground">% aplicado</th>
             <th className="p-3 text-right font-bold text-muted-foreground">Bruto</th>
             <th className="p-3 text-right font-bold text-muted-foreground">Comisión</th>
-            <th className="p-3 text-right font-bold text-muted-foreground">Senses 8%</th>
-            <th className="p-3 text-right font-bold text-muted-foreground">IGV 18%</th>
-            <th className="p-3 text-right font-bold text-muted-foreground">Costos</th>
+            <th className="p-3 text-right font-bold text-muted-foreground">Margen neto</th>
           </tr>
         </thead>
         <tbody>
-          {active.length === 0 ? (
-            <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Sin datos</td></tr>
+          {data.rows.length === 0 ? (
+            <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No hay citas cobradas en el periodo seleccionado.</td></tr>
           ) : (
-            active.map((c, i) => (
-              <tr key={i} className="border-t hover:bg-muted/30">
+            data.rows.map((c) => (
+              <tr key={c.psychologistId} className="border-t hover:bg-muted/30">
                 <td className="p-3 font-medium">{c.psychologist}</td>
-                <td className="p-3 text-right">{Math.round(c.commissionRate * 100)}%</td>
+                <td className="p-3 text-center">{c.receiptsCount}</td>
+                <td className="p-3 text-right">{rateLabel(c.rateBreakdown)}</td>
                 <td className="p-3 text-right">{money(c.grossIncome)}</td>
                 <td className="p-3 text-right font-bold text-blue-600">{money(c.commission)}</td>
-                <td className="p-3 text-right">{money(c.sensesFee)}</td>
-                <td className="p-3 text-right">{money(c.igv)}</td>
-                <td className="p-3 text-right">{money(c.costs)}</td>
+                <td className="p-3 text-right font-bold text-emerald-600">{money(c.clinicNet)}</td>
               </tr>
             ))
           )}
         </tbody>
       </table>
-      <div className="flex gap-4 p-4 bg-muted/30 border-t">
-        <span className="text-sm font-bold">Total comisiones: <span className="text-blue-600 font-extrabold">{money(totalCommission)}</span></span>
       </div>
     </div>
   );

@@ -9,12 +9,24 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getCommissionRatesApi, setCommissionRateApi } from "../../commissions/api/commissionsApi";
 import { Loading } from "@/shared/components/Loading";
+import type { AxiosError } from "axios";
+import { Info, Percent } from "lucide-react";
 
 interface PsychologistCommissionSettingsProps {
   psychologistId: string;
+  canEdit: boolean;
 }
 
-export const PsychologistCommissionSettings = ({ psychologistId }: PsychologistCommissionSettingsProps) => {
+function formatLimaDate(value: string) {
+  return new Intl.DateTimeFormat("es-PE", {
+    timeZone: "America/Lima",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+export const PsychologistCommissionSettings = ({ psychologistId, canEdit }: PsychologistCommissionSettingsProps) => {
   const queryClient = useQueryClient();
   const [percentage, setPercentage] = useState<string>("");
   const [validFrom, setValidFrom] = useState<string>("");
@@ -33,8 +45,8 @@ export const PsychologistCommissionSettings = ({ psychologistId }: PsychologistC
       setValidFrom("");
       queryClient.invalidateQueries({ queryKey: ["commissionRates", psychologistId] });
     },
-    onError: () => {
-      toast.error("Ocurrió un error al actualizar los honorarios");
+    onError: (error: AxiosError<{ message?: string }>) => {
+      toast.error(error.response?.data?.message ?? "Ocurrió un error al actualizar los honorarios");
     },
   });
 
@@ -48,7 +60,7 @@ export const PsychologistCommissionSettings = ({ psychologistId }: PsychologistC
     setRateMutation.mutate({
       psychologistId,
       percentage: numericPercentage,
-      validFrom: validFrom ? new Date(validFrom).toISOString() : undefined,
+      validFrom: validFrom ? new Date(`${validFrom}T00:00:00-05:00`).toISOString() : undefined,
     });
   };
 
@@ -57,30 +69,41 @@ export const PsychologistCommissionSettings = ({ psychologistId }: PsychologistC
   const currentRate = rates?.find((r) => r.isActive);
 
   return (
-    <Card className="mt-8 border-t-4 border-t-blue-500 shadow-md">
-      <CardHeader className="bg-gray-50/50 pb-4">
-        <CardTitle className="text-xl text-blue-900">Honorarios y Comisiones</CardTitle>
+    <Card className="overflow-hidden shadow-sm">
+      <CardHeader className="border-b bg-muted/30">
+        <CardTitle className="flex items-center gap-2 text-xl">
+          <Percent className="h-5 w-5 text-primary" />
+          Honorarios y comisiones
+        </CardTitle>
         <CardDescription>
-          Configura el porcentaje de comisión que recibe este psicólogo por sus atenciones.
+          Define el porcentaje que recibirá el psicólogo por las citas efectivamente cobradas.
         </CardDescription>
       </CardHeader>
-      <CardContent className="pt-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <CardContent className="space-y-6 p-5 md:p-6">
+        <div className="flex gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+          <p>
+            La tasa se aplica según la fecha del cobro. Una nueva vigencia conserva el historial y no modifica cálculos anteriores.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(300px,0.8fr)_minmax(420px,1.2fr)]">
           
           {/* Formulario de actualización */}
-          <div className="space-y-4 bg-white p-6 rounded-lg border shadow-sm">
-            <h3 className="font-semibold text-gray-700">Tasa Actual</h3>
+          <div className="space-y-4 rounded-xl border bg-muted/20 p-5">
+            <h3 className="font-semibold">Tasa actual</h3>
             <div className="flex items-center space-x-2">
-              <span className="text-3xl font-bold text-blue-600">
+              <span className="text-3xl font-bold text-primary">
                 {currentRate ? `${currentRate.percentage}%` : "No configurado"}
               </span>
               {currentRate && <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Activa</Badge>}
             </div>
 
+            {canEdit ? (
             <div className="space-y-4 pt-4 border-t mt-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label htmlFor="percentage">Nuevo Porcentaje (%)</Label>
+                  <Label htmlFor="percentage">Nuevo porcentaje (%)</Label>
                   <Input
                     id="percentage"
                     type="number"
@@ -102,25 +125,34 @@ export const PsychologistCommissionSettings = ({ psychologistId }: PsychologistC
                 </div>
               </div>
               <Button 
+                type="button"
                 onClick={handleSave} 
                 disabled={setRateMutation.isPending || !percentage}
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full"
               >
                 {setRateMutation.isPending ? "Guardando..." : "Aplicar"}
               </Button>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Si dejas la fecha en blanco, la nueva tasa se aplicará a partir de hoy.
               </p>
             </div>
+            ) : (
+              <p className="pt-4 border-t text-sm text-muted-foreground">
+                Solo Gerencia puede modificar el porcentaje de comisión.
+              </p>
+            )}
           </div>
 
           {/* Historial */}
           <div className="space-y-4">
-            <h3 className="font-semibold text-gray-700">Historial de Honorarios</h3>
+            <div>
+              <h3 className="font-semibold">Historial de tasas</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Cada cambio mantiene su periodo de vigencia.</p>
+            </div>
             {rates && rates.length > 0 ? (
               <div className="border rounded-md overflow-hidden">
                 <Table>
-                  <TableHeader className="bg-gray-50">
+                  <TableHeader className="bg-muted/40">
                     <TableRow>
                       <TableHead>Porcentaje</TableHead>
                       <TableHead>Desde</TableHead>
@@ -132,13 +164,13 @@ export const PsychologistCommissionSettings = ({ psychologistId }: PsychologistC
                     {rates.map((rate) => (
                       <TableRow key={rate.id}>
                         <TableCell className="font-medium">{rate.percentage}%</TableCell>
-                        <TableCell>{new Date(rate.validFrom).toLocaleDateString()}</TableCell>
-                        <TableCell>{rate.validTo ? new Date(rate.validTo).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>{formatLimaDate(rate.validFrom)}</TableCell>
+                        <TableCell>{rate.validTo ? formatLimaDate(rate.validTo) : "-"}</TableCell>
                         <TableCell>
                           {rate.isActive ? (
                             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Activo</Badge>
                           ) : (
-                            <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-200">Vencido</Badge>
+                            <Badge variant="outline" className="bg-muted text-muted-foreground">Vencido</Badge>
                           )}
                         </TableCell>
                       </TableRow>
@@ -147,7 +179,7 @@ export const PsychologistCommissionSettings = ({ psychologistId }: PsychologistC
                 </Table>
               </div>
             ) : (
-              <p className="text-sm text-gray-500 italic p-4 bg-gray-50 rounded border text-center">
+              <p className="text-sm text-muted-foreground italic p-4 bg-muted/30 rounded border text-center">
                 No hay historial de honorarios registrado para este psicólogo.
               </p>
             )}

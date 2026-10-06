@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import type { ReportType, MockReceipt, MockExpense, CommissionByPsychologist, CashFlowData } from "@/shared/interfaces/models/Financial";
+import type { ReportType, MockReceipt, MockExpense, CommissionReportData, CashFlowData } from "@/shared/interfaces/models/Financial";
 import { useReportsData } from "../hooks/useReportsData";
 import { ReportFilters, REPORT_TYPES } from "../components/ReportFilters";
 import { IncomeReport } from "../components/IncomeReport";
@@ -32,6 +32,19 @@ function getMonthRange() {
 
 const defaultMonth = getMonthRange();
 
+interface PatientSearchItem {
+  id?: string;
+  firstName?: string;
+  lastName?: string;
+  dni?: string;
+}
+
+interface PsychologistSearchItem {
+  id?: string;
+  firstName?: string;
+  lastName?: string;
+}
+
 export const ReportsPage = () => {
   const roleSelected = useAuth((state) => state.roleSelected);
   const reportTypes = roleSelected === "CASHIER"
@@ -59,8 +72,8 @@ export const ReportsPage = () => {
         firstname: isDniOnly ? "" : query.trim(),
         lastname: "",
       });
-      const items = Array.isArray(result) ? result : [];
-      setPatientOptions(items.map((p: any) => ({
+      const items: PatientSearchItem[] = Array.isArray(result) ? result : [];
+      setPatientOptions(items.map((p) => ({
         id: p.id ?? "",
         name: `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim(),
         dni: p.dni ?? "",
@@ -72,7 +85,7 @@ export const ReportsPage = () => {
     }
   }, []);
 
-  const psychologistOptions = psychologists.map((p: any) => ({
+  const psychologistOptions = (psychologists as PsychologistSearchItem[]).map((p) => ({
     id: p.id ?? "",
     name: `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim(),
   }));
@@ -87,7 +100,7 @@ export const ReportsPage = () => {
     switch (reportType) {
       case "income": case "receipts": exportIncomesExcel(data as MockReceipt[], filename); break;
       case "expenses": exportExpensesExcel(data as MockExpense[], filename); break;
-      case "commissions": exportCommissionsExcel(data as CommissionByPsychologist[], filename); break;
+      case "commissions": exportCommissionsExcel(data as CommissionReportData, filename, dateFrom, dateTo); break;
       case "cash-flow": exportCashFlowExcel(data as CashFlowData, filename); break;
     }
   };
@@ -110,7 +123,7 @@ export const ReportsPage = () => {
       case "income": return <IncomeReport data={data as MockReceipt[]} />;
       case "expenses": return <ExpensesReport data={data as MockExpense[]} />;
       case "receipts": return <ReceiptsReport data={data as MockReceipt[]} />;
-      case "commissions": return <CommissionsReport data={data as CommissionByPsychologist[]} />;
+      case "commissions": return <CommissionsReport data={data as CommissionReportData} />;
       case "cash-flow": return <CashFlowReport data={data as CashFlowData} />;
       default: return null;
     }

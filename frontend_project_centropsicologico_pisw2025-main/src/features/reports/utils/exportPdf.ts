@@ -1,4 +1,6 @@
-import type { MockReceipt, MockExpense, CommissionByPsychologist, CashFlowData } from "@/shared/interfaces/models/Financial";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import type { MockReceipt, MockExpense, CommissionReportData, CashFlowData } from "@/shared/interfaces/models/Financial";
 
 function money(n: number) {
   return `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -12,10 +14,63 @@ function dateDisplay(iso: string) {
 
 export function exportToPdf(
   reportType: string,
-  data: MockReceipt[] | MockExpense[] | CommissionByPsychologist[] | CashFlowData,
+  data: MockReceipt[] | MockExpense[] | CommissionReportData | CashFlowData,
   dateFrom: string,
   dateTo: string
 ) {
+  if (reportType === "commissions") {
+    const report = data as CommissionReportData;
+    const document = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+    document.setFontSize(16);
+    document.text("Reporte de comisiones por psicólogo", 14, 16);
+    document.setFontSize(10);
+    document.setTextColor(100);
+    document.text(`Periodo: ${dateDisplay(dateFrom)} - ${dateDisplay(dateTo)}`, 14, 23);
+
+    autoTable(document, {
+      startY: 29,
+      head: [["Psicólogo", "Citas", "% aplicado", "Ingreso bruto", "Comisión", "Margen neto"]],
+      body: report.rows.map((row) => [
+        row.psychologist,
+        String(row.receiptsCount),
+        [...new Set(row.rateBreakdown.map((rate) => rate.percentage))].map((rate) => `${rate}%`).join(" / "),
+        money(row.grossIncome),
+        money(row.commission),
+        money(row.clinicNet),
+      ]),
+      foot: [[
+        "Totales",
+        String(report.summary.paidAppointmentsCount),
+        "",
+        money(report.summary.grossIncome),
+        money(report.summary.commissionAmount),
+        money(report.summary.clinicNetAmount),
+      ]],
+      theme: "grid",
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [11, 32, 53] },
+      footStyles: { fillColor: [226, 232, 240], textColor: [15, 23, 42], fontStyle: "bold" },
+    });
+
+    if (report.warnings.length > 0) {
+      const finalY = (document as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 40;
+      document.setFontSize(10);
+      document.setTextColor(146, 64, 14);
+      document.text("Advertencias", 14, finalY + 9);
+      report.warnings.forEach((warning, index) => {
+        document.text(
+          `• ${warning.firstName} ${warning.lastName}: ${warning.message}`,
+          14,
+          finalY + 15 + index * 5
+        );
+      });
+    }
+
+    document.save(`reporte-comisiones-${dateFrom}-${dateTo}.pdf`);
+    return;
+  }
+
   const win = window.open("", "_blank");
   if (!win) return;
 
@@ -44,16 +99,6 @@ export function exportToPdf(
         </tbody>
       </table>
       <div class="summary">Saldo inicial: ${money(d.opening)} | Total ingresos: ${money(d.totalIncome)} | Total egresos: ${money(d.totalExpenses)} | Saldo: <b>${money(d.final)}</b></div>`;
-  } else if (reportType === "commissions") {
-    const d = data as CommissionByPsychologist[];
-    bodyHtml = `
-      <table>
-        <thead><tr><th>Psicólogo</th><th class="r">%</th><th class="r">Bruto</th><th class="r">Comisión</th><th class="r">Senses 8%</th><th class="r">IGV 18%</th><th class="r">Costos</th></tr></thead>
-        <tbody>
-          ${d.filter(c => c.grossIncome > 0).map(c => `<tr><td>${c.psychologist}</td><td class="r">${Math.round(c.commissionRate * 100)}%</td><td class="r">${money(c.grossIncome)}</td><td class="r"><b>${money(c.commission)}</b></td><td class="r">${money(c.sensesFee)}</td><td class="r">${money(c.igv)}</td><td class="r">${money(c.costs)}</td></tr>`).join("")}
-        </tbody>
-      </table>
-      <div class="summary">Total comisiones: <b>${money(d.reduce((s, c) => s + c.commission, 0))}</b></div>`;
   } else {
     const d = data as MockReceipt[] | MockExpense[];
     const isExpense = "concept" in (d[0] || {});
