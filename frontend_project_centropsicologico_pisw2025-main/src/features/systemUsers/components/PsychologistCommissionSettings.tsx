@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getCommissionRatesApi, setCommissionRateApi } from "../../commissions/api/commissionsApi";
 import { Loading } from "@/shared/components/Loading";
+import { useAuth } from "@/store/auth/auth.store";
 
 interface PsychologistCommissionSettingsProps {
   psychologistId: string;
@@ -16,6 +17,7 @@ interface PsychologistCommissionSettingsProps {
 
 export const PsychologistCommissionSettings = ({ psychologistId }: PsychologistCommissionSettingsProps) => {
   const queryClient = useQueryClient();
+  const canEdit = useAuth((state) => state.roleSelected) === "ADMIN";
   const [percentage, setPercentage] = useState<string>("");
   const [validFrom, setValidFrom] = useState<string>("");
 
@@ -77,7 +79,7 @@ export const PsychologistCommissionSettings = ({ psychologistId }: PsychologistC
               {currentRate && <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Activa</Badge>}
             </div>
 
-            <div className="space-y-4 pt-4 border-t mt-4">
+            {canEdit && <div className="space-y-4 pt-4 border-t mt-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="percentage">Nuevo Porcentaje (%)</Label>
@@ -111,7 +113,7 @@ export const PsychologistCommissionSettings = ({ psychologistId }: PsychologistC
               <p className="text-xs text-gray-500">
                 Si dejas la fecha en blanco, la nueva tasa se aplicará a partir de hoy.
               </p>
-            </div>
+            </div>}
           </div>
 
           {/* Historial */}

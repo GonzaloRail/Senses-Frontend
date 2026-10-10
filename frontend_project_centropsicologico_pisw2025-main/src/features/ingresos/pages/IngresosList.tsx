@@ -31,6 +31,7 @@ export const IngresosList = () => {
   const navigate = useNavigate();
   const roleSelected = useAuth((state) => state.roleSelected);
   const isAdmin = roleSelected === "ADMIN";
+  const isCashier = roleSelected === "CASHIER";
   const canCreateIncome = roleSelected === "CASHIER";
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("all");
@@ -103,7 +104,7 @@ export const IngresosList = () => {
                       >
                         Registro diario
                       </Button>
-                      {isAdmin && (
+                      {(isAdmin || isCashier) && (
                         <Button
                           variant={viewMode === "change-requests" ? "default" : "outline"}
                           size="sm"
@@ -147,7 +148,7 @@ export const IngresosList = () => {
                   <ChangeRequestsTable
                     requests={changeRequestsData?.items ?? []}
                     loading={loadingCR}
-                    isAdmin={isAdmin}
+                     canReview={isCashier}
                     onRefresh={refetchCR}
                   />
                 ) : (
@@ -172,6 +173,7 @@ export const IngresosList = () => {
                           receipts={displayReceipts}
                           onView={setSelectedId}
                           onShowReceipt={setPreviewReceipt}
+                          canRequestChanges={isCashier}
                         />
                         <IngresosSummary receipts={displayReceipts} />
                       </>

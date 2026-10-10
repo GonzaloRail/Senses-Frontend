@@ -12,6 +12,7 @@ import type { InventoryItem, InventoryCategory, InventoryItemHistory } from "../
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Edit } from "lucide-react";
+import { useAuth } from "@/store/auth/auth.store";
 
 interface AssetDetailsSheetProps {
   asset: InventoryItem | null;
@@ -22,6 +23,7 @@ interface AssetDetailsSheetProps {
 
 export function AssetDetailsSheet({ asset, categories, open, onOpenChange }: AssetDetailsSheetProps) {
   const navigate = useNavigate();
+  const canManageInventory = useAuth((state) => state.roleSelected) === "CASHIER";
   const [history, setHistory] = useState<InventoryItemHistory[]>([]);
 
   useEffect(() => {
@@ -73,13 +75,13 @@ export function AssetDetailsSheet({ asset, categories, open, onOpenChange }: Ass
                 Detalles completos del activo registrado.
               </SheetDescription>
             </div>
-            <Button variant="outline" size="sm" className="gap-2 mt-0 shrink-0" onClick={() => {
+            {canManageInventory && <Button variant="outline" size="sm" className="gap-2 mt-0 shrink-0" onClick={() => {
               onOpenChange(false);
               navigate(`/inventory/${asset.id}/edit`);
             }}>
               <Edit className="h-4 w-4" />
               Editar
-            </Button>
+            </Button>}
           </SheetHeader>
 
           <div className="flex flex-col gap-8 py-2">

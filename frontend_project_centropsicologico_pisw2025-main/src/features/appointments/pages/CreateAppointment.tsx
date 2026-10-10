@@ -21,6 +21,8 @@ import { useCreateAppointment } from "../hooks/useAppointmentMutations";
 import type { User } from "@/shared/interfaces/models";
 import { getOfficeByIdApi } from "@/features/offices/api/officesApi";
 import { updatePatientPsychologistIdApi } from "../api/appointmentsApi";
+import { getPsychologistSchedulingApi } from "@/features/systemUsers/api/systemUsersApi";
+import { useQuery } from "@tanstack/react-query";
 
 export const CreateAppointment = () => {
   const navigate = useNavigate();
@@ -57,6 +59,11 @@ export const CreateAppointment = () => {
   const startTime = form.watch("startTime");
   const endTime = form.watch("endTime");
   const psychologistId = form.watch("psychologistId");
+  const { data: psychologistScheduling } = useQuery({
+    queryKey: ["psychologist-scheduling", psychologistId],
+    queryFn: () => getPsychologistSchedulingApi({ id: psychologistId }),
+    enabled: Boolean(psychologistId),
+  });
 
   const getDayOfWeek = (dateString: string): string => {
     const date = new Date(`${dateString}T00:00`);
@@ -74,7 +81,8 @@ export const CreateAppointment = () => {
 
   // Función para encontrar la oficina basada en el día y hora
   const getOfficeFromSchedule = useCallback(() => {
-    if (!psychologistId || !date || !startTime || !selectedPsychologist) {
+    const psychologist = psychologistScheduling ?? selectedPsychologist;
+    if (!psychologistId || !date || !startTime || !psychologist) {
       form.setValue("officeId", "");
       setAssignedOffice(null);
       return;
@@ -85,7 +93,7 @@ export const CreateAppointment = () => {
     console.log("psicologo", selectedPsychologist);
 
     // Buscar en el workSchedule del psicólogo
-    const schedule = selectedPsychologist.workSchedule?.find((schedule) => {
+    const schedule = psychologist.workSchedule?.find((schedule: any) => {
       console.log("comparando:", schedule.day, "===", dayOfWeek);
       return schedule.day === dayOfWeek;
     });
@@ -129,7 +137,7 @@ export const CreateAppointment = () => {
       form.setValue("officeId", "");
       setAssignedOffice(null);
     }
-  }, [psychologistId, date, startTime, endTime, selectedPsychologist, form]);
+  }, [psychologistId, date, startTime, endTime, psychologistScheduling, selectedPsychologist, form]);
 
   // Efecto para actualizar la oficina cuando cambia el psicólogo, fecha u hora
   useEffect(() => {

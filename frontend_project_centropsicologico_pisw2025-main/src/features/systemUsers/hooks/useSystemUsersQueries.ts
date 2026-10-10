@@ -105,7 +105,7 @@ export const usePsychologistSearchQuery = () => {
   };
 };
 
-export const usePsychologistSearchByNameQuery = () => {
+export const usePsychologistSearchByNameQuery = (enabled = true) => {
   const [searchName, setSearchQuery] = useState<string>("");
 
   const {
@@ -115,7 +115,7 @@ export const usePsychologistSearchByNameQuery = () => {
   } = useQuery<UserMinimal[]>({
     queryKey: ["psychologists", "search", searchName],
     queryFn: () => searchPsychologistByName(searchName),
-    //enabled: searchName.trim().length > 0,
+    enabled,
     staleTime: 5 * 60 * 1000,
   });
 
