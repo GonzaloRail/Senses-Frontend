@@ -15,6 +15,8 @@ import { useGetAppointmentById } from "../hooks/useAppointmentQueries";
 import { useUpdateAppointment } from "../hooks/useAppointmentMutations";
 import type { User } from "@/shared/interfaces/models";
 import { getOfficeByIdApi } from "@/features/offices/api/officesApi";
+import { getPsychologistSchedulingApi } from "@/features/systemUsers/api/systemUsersApi";
+import { useQuery } from "@tanstack/react-query";
 
 export const EditAppointment = () => {
   const { id } = useParams<{ id: string }>();
@@ -95,9 +97,15 @@ export const EditAppointment = () => {
   const startTime = form.watch("startTime");
   const endTime = form.watch("endTime");
   const psychologistId = form.watch("psychologistId");
+  const { data: psychologistScheduling } = useQuery({
+    queryKey: ["psychologist-scheduling", psychologistId],
+    queryFn: () => getPsychologistSchedulingApi({ id: psychologistId }),
+    enabled: Boolean(psychologistId),
+  });
 
   const getOfficeFromSchedule = useCallback(() => {
-    if (!psychologistId || !date || !startTime || !selectedPsychologist) {
+    const psychologist = psychologistScheduling ?? selectedPsychologist;
+    if (!psychologistId || !date || !startTime || !psychologist) {
       form.setValue("officeId", "");
       setAssignedOffice(null);
       return;
@@ -105,7 +113,7 @@ export const EditAppointment = () => {
 
     const dayOfWeek = getDayOfWeek(date);
 
-    const schedule = selectedPsychologist.workSchedule?.find((s: any) => {
+    const schedule = psychologist.workSchedule?.find((s: any) => {
       return (s.day || s.dayOfWeek)?.toString().toUpperCase() === dayOfWeek;
     });
 
@@ -144,7 +152,7 @@ export const EditAppointment = () => {
       form.setValue("officeId", "");
       setAssignedOffice(null);
     }
-  }, [psychologistId, date, startTime, endTime, selectedPsychologist, form]);
+  }, [psychologistId, date, startTime, endTime, psychologistScheduling, selectedPsychologist, form]);
 
   // actualizar selectedPsychologist cuando cambie psychologistId
   useEffect(() => {
