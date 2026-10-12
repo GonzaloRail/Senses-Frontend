@@ -45,23 +45,47 @@ export interface CashFlowData {
 }
 
 export interface CommissionByPsychologist {
+  psychologistId: string;
   psychologist: string;
   commissionRate: number;
   grossIncome: number;
   commission: number;
-  sensesFee: number;
-  igv: number;
-  costs: number;
+  clinicNet: number;
   receiptsCount: number;
+  rateBreakdown: CommissionRateBreakdown[];
 }
 
-export interface PsychologistConfig {
-  name: string;
-  commission: number;
+export interface CommissionRateBreakdown {
+  percentage: number;
+  validFrom: string;
+  validTo: string | null;
+  grossIncome: number;
+  commissionAmount: number;
+}
+
+export interface MissingCommissionRate {
+  psychologistId: string;
+  firstName: string;
+  lastName: string;
+  code: "MISSING_COMMISSION_RATE";
+  message: string;
+}
+
+export interface CommissionReportSummary {
+  grossIncome: number;
+  commissionAmount: number;
+  clinicNetAmount: number;
+  paidAppointmentsCount: number;
+}
+
+export interface CommissionReportData {
+  rows: CommissionByPsychologist[];
+  warnings: MissingCommissionRate[];
+  summary: CommissionReportSummary;
 }
 
 export interface MockReceipt {
-  id: number;
+  id: string | number;
   date: string;
   client: string;
   patient: string;
@@ -73,7 +97,7 @@ export interface MockReceipt {
 }
 
 export interface MockExpense {
-  id: number;
+  id: string | number;
   date: string;
   type: string;
   concept: string;

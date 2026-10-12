@@ -2,7 +2,8 @@ import type { MockReceipt, MockExpense, CashFlowData } from "@/shared/interfaces
 import api from "@/api/api";
 import { ingresosApi } from "@/features/ingresos/api/ingresosApi";
 import { accountingExpensesApi } from "@/features/accounting/api/accountingExpensesApi";
-import { calculateCommissionsFromReceipts } from "@/features/financial-dashboard/utils/commissions";
+import type { AccountingExpense } from "@/features/accounting/api/accountingExpensesApi";
+import { getCommissionReportApi } from "@/features/commissions/api/commissionsApi";
 
 export interface ReportFilters {
   dateFrom: string;
@@ -16,7 +17,7 @@ type ReportType = "income" | "expenses" | "receipts" | "commissions" | "cash-flo
 
 function incomeToMock(item: import("@/shared/interfaces/models/IncomeReceipt").IncomeReceipt): MockReceipt {
   return {
-    id: item.id as any, date: item.date, client: item.client, patient: item.patient,
+    id: item.id, date: item.date, client: item.client, patient: item.patient,
     service: item.service, psychologist: item.psychologist,
     payment: item.payment, total: item.total, status: item.status,
   };
@@ -24,7 +25,7 @@ function incomeToMock(item: import("@/shared/interfaces/models/IncomeReceipt").I
 
 function expenseToMock(item: import("@/features/accounting/api/accountingExpensesApi").AccountingExpense): MockExpense {
   return {
-    id: item.id as any,
+    id: item.id,
     date: item.expenseDate?.slice(0, 10) ?? "",
     type: item.type ?? "Variable",
     concept: item.concept ?? "",
@@ -75,13 +76,11 @@ export async function fetchReport(type: ReportType, filters: ReportFilters) {
       return (result?.data ?? []).map(expenseToMock);
     }
     case "commissions": {
-      const list = await ingresosApi.getFiltered({
-        dateFrom: filters.dateFrom, dateTo: filters.dateTo,
-        patient: "", client: "", psychologist: filters.psychologist ?? "",
-        payment: filters.paymentMethod ?? "", number: "",
+      return getCommissionReportApi({
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+        psychologistId: filters.psychologist,
       });
-      const receipts = list.filter((r) => r.status !== "Anulado").map(incomeToMock);
-      return calculateCommissionsFromReceipts(receipts);
     }
     case "cash-flow": {
       const [incomeList, expenseResult, openingBalance] = await Promise.all([
@@ -94,13 +93,13 @@ export async function fetchReport(type: ReportType, filters: ReportFilters) {
           take: 200,
           startDate: new Date(filters.dateFrom).toISOString(),
           endDate: new Date(filters.dateTo + "T23:59:59").toISOString(),
-        }).catch(() => ({ data: [] as any[] })),
+        }).catch(() => ({ data: [] as AccountingExpense[] })),
         fetchOpeningBalance(filters.dateFrom),
       ]);
 
       const incomes = incomeList.filter((r) => r.status !== "Anulado").map(incomeToMock);
       const exps = (expenseResult?.data ?? [])
-        .filter((e: any) => e.status === "APPROVED")
+        .filter((e) => e.status === "APPROVED")
         .map(expenseToMock);
 
       const daysSet = new Set([...incomes.map((r) => r.date), ...exps.map((e) => e.date)]);

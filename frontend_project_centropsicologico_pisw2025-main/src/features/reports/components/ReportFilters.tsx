@@ -52,6 +52,7 @@ export const ReportFilters = ({
   onPsychologistChange, onPaymentMethodChange, onReportTypeChange,
   onClear, onExportPdf, onExportExcel,
 }: Props) => {
+  const isCommissionReport = reportType === "commissions";
   const [patientInput, setPatientInput] = useState(patient || "");
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   const patientRef = useRef<HTMLDivElement>(null);
@@ -120,11 +121,12 @@ export const ReportFilters = ({
         <div className="flex flex-col gap-1 relative" ref={patientRef}>
           <label className="text-xs font-bold text-muted-foreground uppercase">Paciente</label>
           <input
-            placeholder="Buscar por nombre o DNI..."
+            placeholder={isCommissionReport ? "No aplica" : "Buscar por nombre o DNI..."}
             value={patientInput}
+            disabled={isCommissionReport}
             onChange={(e) => handlePatientInput(e.target.value)}
             onFocus={() => { if (patientOptions.length > 0) setShowPatientDropdown(true); }}
-            className="border rounded-lg px-2 py-1.5 text-sm bg-white"
+            className="border rounded-lg px-2 py-1.5 text-sm bg-white disabled:bg-muted disabled:cursor-not-allowed"
           />
           {showPatientDropdown && (
             <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-40 overflow-auto rounded-md border bg-white shadow-lg">
@@ -161,7 +163,7 @@ export const ReportFilters = ({
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs font-bold text-muted-foreground uppercase">Forma de pago</label>
-          <select value={paymentMethod} onChange={(e) => onPaymentMethodChange(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm bg-white">
+          <select disabled={isCommissionReport} value={paymentMethod} onChange={(e) => onPaymentMethodChange(e.target.value)} className="border rounded-lg px-2 py-1.5 text-sm bg-white disabled:bg-muted disabled:cursor-not-allowed">
             <option value="">Todas</option>
             {PAYMENT_METHODS.map((p) => (
               <option key={p} value={p}>{p}</option>

@@ -31,6 +31,7 @@ import { Loading } from "@/shared/components/Loading";
 import { UserWorkSchedule } from "../components/PsychologistWorkSchedule";
 import { SearchableSelect } from "@/shared/components/SearchableSelect";
 import { uploadFileToCloudStorage } from "@/shared/utils/uploadFileToCloudStorage";
+import { useAuth } from "@/store/auth/auth.store";
 
 type FormMode = "view" | "edit" | "create";
 
@@ -44,7 +45,22 @@ const rolesName = {
   HR: "Recursos Humanos",
 };
 
+const getRoleName = (value: unknown): RoleType | undefined => {
+  if (!value || typeof value !== "object") return undefined;
+
+  const roleValue = value as {
+    name?: unknown;
+    role?: { name?: unknown };
+  };
+  const name = roleValue.name ?? roleValue.role?.name;
+
+  return typeof name === "string" && name in rolesName
+    ? (name as RoleType)
+    : undefined;
+};
+
 export const SystemUserInformation = () => {
+  const roleSelected = useAuth((state) => state.roleSelected);
   const methods = useForm<UserFormSchema>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
@@ -84,6 +100,9 @@ export const SystemUserInformation = () => {
   const [selectedRoles, setSelectedRoles] = useState<RoleType[]>([]);
   const [loading, setLoading] = useState(false);
   const { data: userData, isLoading } = useUserByIdQuery({ id });
+  const userRoleNames = (userData?.roles ?? [])
+    .map(getRoleName)
+    .filter((name): name is RoleType => typeof name === "string");
   // creo que no esta trayendo schedules, falta eso y poder editar horarios de hbaerlos
   const { data: rolesDb } = useRolesQuery();
   const roleOptions = (rolesDb ?? []).map((role) => ({
@@ -148,7 +167,7 @@ export const SystemUserInformation = () => {
         lastName: userData.lastName ?? "",
         email: userData.email ?? "",
         roles: (userData.roles ?? [])
-          .map((r) => r.role?.name)
+          .map(getRoleName)
           .filter(Boolean) as string[],
         dni: userData.dni ?? "",
         csp: userData.csp ?? "",
@@ -164,7 +183,7 @@ export const SystemUserInformation = () => {
       });
       setSelectedRoles(
         (userData.roles ?? [])
-          .map((userRole) => userRole.role?.name)
+          .map(getRoleName)
           .filter((name): name is RoleType => typeof name === "string")
       );
     }
@@ -509,7 +528,7 @@ export const SystemUserInformation = () => {
   ); */
   return (
     <FormProvider {...methods}>
-      <div className="h-screen flex flex-col">
+      <div className="min-h-screen flex flex-col">
         <>
           {mode === "create" ? (
             <SiteHeader title="Crear usuario" />
@@ -520,8 +539,8 @@ export const SystemUserInformation = () => {
             onSubmit={handleSubmit(onSubmit)}
             className="flex-1 flex flex-col"
           >
-            <div className="flex flex-col p-2 gap-5 flex-1">
-              <div className="flex flex-col gap-10 justify-center mt-5 lg:flex-row">
+            <div className="flex flex-col px-4 py-6 gap-8 flex-1 w-full max-w-[1200px] mx-auto">
+              <div className="flex flex-col gap-10 justify-center lg:flex-row">
                 <div className="flex flex-col p-2 md:p-6 items-center gap-2">
                   {/* Información básica */}
                   <InputWithHelper
@@ -557,7 +576,7 @@ export const SystemUserInformation = () => {
                     id="roles"
                     label="Roles"
                     options={roleOptions}
-                    selectedValues={watch("roles")}
+                    selectedValues={isViewMode ? userRoleNames : watch("roles")}
                     onSelectionChange={handleRolesChange}
                     readOnly={isViewMode}
                     helper="Seleccione uno o más roles para el usuario"
@@ -752,7 +771,7 @@ export const SystemUserInformation = () => {
                       }
                       onSearch={psychologistSearch.setSearchQuery}
                       options={psychologistSearch.psychologists.filter((psychologist) => 
-                        (psychologist.roles ?? []).every((ur) => ur.role?.name !== "INTERNAL")
+                        (psychologist.roles ?? []).every((userRole) => getRoleName(userRole) !== "INTERNAL")
                       ).map(
                         ({ dni, firstName, id, lastName }) => ({
                           value: id,
@@ -803,8 +822,15 @@ export const SystemUserInformation = () => {
                 )}
               </div>
 
+              {mode === "view" && id && userRoleNames.includes("PSYCHOLOGIST") && (
+                <PsychologistCommissionSettings
+                  psychologistId={id}
+                  canEdit={roleSelected === "ADMIN"}
+                />
+              )}
+
               {/* Botones de acción */}
-              <div className="flex flex-col p-2 gap-3 pt-4 border-t w-full md:flex-row md:justify-end mt-auto">
+              <div className="flex flex-col gap-3 pt-5 border-t w-full md:flex-row md:justify-end">
                 {isViewMode && (
                   <>
                     <Button
@@ -878,13 +904,6 @@ export const SystemUserInformation = () => {
               </div>
             </div>
           </form>
-
-          {/* Configuración de honorarios si es psicólogo y está en modo vista */}
-          {mode === "view" && id && userData?.roles?.some((r: any) => r.name === "PSYCHOLOGIST") && (
-            <div className="p-4 md:p-6 max-w-[1200px] w-full mx-auto mb-10">
-              <PsychologistCommissionSettings psychologistId={id} />
-            </div>
-          )}
         </>
       </div>
     </FormProvider>

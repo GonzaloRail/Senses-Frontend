@@ -9,6 +9,11 @@ function money(n: number) {
   return `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function ratesLabel(item: CommissionByPsychologist) {
+  const rates = [...new Set(item.rateBreakdown.map((rate) => rate.percentage))];
+  return rates.length > 0 ? rates.map((rate) => `${rate}%`).join(", ") : `${item.commissionRate}%`;
+}
+
 export const CommissionsTable = ({ data, onViewPsychologist }: Props) => {
   const active = data.filter((c) => c.grossIncome > 0);
 
@@ -25,27 +30,25 @@ export const CommissionsTable = ({ data, onViewPsychologist }: Props) => {
               <th className="p-3 font-bold text-muted-foreground text-right">% Comisión</th>
               <th className="p-3 font-bold text-muted-foreground text-right">Total bruto</th>
               <th className="p-3 font-bold text-muted-foreground text-right">Comisión</th>
-              <th className="p-3 font-bold text-muted-foreground text-right">Senses 8%</th>
-              <th className="p-3 font-bold text-muted-foreground text-right">IGV 18%</th>
-              <th className="p-3 font-bold text-muted-foreground text-center">Recibos</th>
+              <th className="p-3 font-bold text-muted-foreground text-right">Margen clínica</th>
+              <th className="p-3 font-bold text-muted-foreground text-center">Citas cobradas</th>
             </tr>
           </thead>
           <tbody>
             {active.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                <td colSpan={6} className="p-8 text-center text-muted-foreground">
                   No hay ingresos en el período para calcular comisiones
                 </td>
               </tr>
             ) : (
-              active.map((c, i) => (
-                <tr key={i} className="border-t hover:bg-muted/30">
+              active.map((c) => (
+                <tr key={c.psychologistId} className="border-t hover:bg-muted/30">
                   <td className="p-3 font-medium">{c.psychologist}</td>
-                  <td className="p-3 text-right">{Math.round(c.commissionRate * 100)}%</td>
+                  <td className="p-3 text-right">{ratesLabel(c)}</td>
                   <td className="p-3 text-right">{money(c.grossIncome)}</td>
                   <td className="p-3 text-right font-bold text-blue-600">{money(c.commission)}</td>
-                  <td className="p-3 text-right">{money(c.sensesFee)}</td>
-                  <td className="p-3 text-right">{money(c.igv)}</td>
+                  <td className="p-3 text-right font-medium text-emerald-700">{money(c.clinicNet)}</td>
                   <td className="p-3 text-center">
                     <button
                       onClick={() => onViewPsychologist(c.psychologist)}

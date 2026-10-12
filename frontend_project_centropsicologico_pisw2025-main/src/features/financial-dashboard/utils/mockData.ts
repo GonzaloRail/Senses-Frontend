@@ -1,10 +1,4 @@
-import type { MockReceipt, MockExpense, PsychologistConfig } from "@/shared/interfaces/models/Financial";
-
-export const PSYCHOLOGISTS: PsychologistConfig[] = [
-  { name: "Psicólogo Demo 1", commission: 0.50 },
-  { name: "Psicóloga Demo 2", commission: 0.50 },
-  { name: "Interno Demo", commission: 0.40 },
-];
+import type { MockReceipt, MockExpense } from "@/shared/interfaces/models/Financial";
 
 export const PAYMENT_METHODS = ["Yape", "Plin", "Efectivo", "Transferencia", "Tarjeta"];
 

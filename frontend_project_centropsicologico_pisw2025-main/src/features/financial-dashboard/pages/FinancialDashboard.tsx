@@ -12,6 +12,7 @@ import { DetailModal } from "../components/DetailModal";
 import { Loading } from "@/shared/components/Loading";
 import { ingresosApi } from "@/features/ingresos/api/ingresosApi";
 import { accountingExpensesApi } from "@/features/accounting/api/accountingExpensesApi";
+import { AlertTriangle } from "lucide-react";
 
 function money(n: number) {
   return `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -21,6 +22,11 @@ function dateDisplay(iso: string) {
   if (!iso) return "";
   const [y, m, d] = iso.slice(0, 10).split("-");
   return `${d}/${m}/${y}`;
+}
+
+function ratesLabel(rates: { percentage: number }[], fallback: number) {
+  const percentages = [...new Set(rates.map((rate) => rate.percentage))];
+  return percentages.length > 0 ? percentages.map((rate) => `${rate}%`).join(", ") : `${fallback}%`;
 }
 
 function getDateRange(dateMode: DateMode, selectedDate: Date, customFrom: string, customTo: string) {
@@ -51,7 +57,7 @@ async function fetchReceipts(from: string, to: string, paymentFilter?: string): 
     payment: paymentFilter ?? "", number: "",
   });
   return list.filter((r) => r.status !== "Anulado").map((r) => ({
-    id: r.id as any,
+    id: r.id,
     date: r.date, client: r.client, patient: r.patient,
     service: r.service, psychologist: r.psychologist,
     payment: r.payment, total: r.total, status: r.status,
@@ -66,7 +72,7 @@ async function fetchExpenses(from: string, to: string): Promise<MockExpense[]> {
   });
   return (result?.data ?? [])
     .filter((item) => item.status === "APPROVED").map((item) => ({
-    id: item.id as any,
+    id: item.id,
     date: item.createdAt?.slice(0, 10) ?? "",
     type: item.type ?? "Variable",
     concept: item.concept ?? "",
@@ -271,10 +277,10 @@ export const FinancialDashboard = () => {
                       <tbody>
                         {active.length === 0 ? (
                           <tr><td colSpan={4} className="p-4 text-center text-muted-foreground">Sin datos</td></tr>
-                        ) : active.map((c, i) => (
-                          <tr key={i} className="border-t hover:bg-muted/30">
+                        ) : active.map((c) => (
+                          <tr key={c.psychologistId} className="border-t hover:bg-muted/30">
                             <td className="p-2">{c.psychologist}</td>
-                            <td className="p-2 text-right">{Math.round(c.commissionRate * 100)}%</td>
+                            <td className="p-2 text-right">{ratesLabel(c.rateBreakdown, c.commissionRate)}</td>
                             <td className="p-2 text-right">{money(c.grossIncome)}</td>
                             <td className="p-2 text-right font-bold text-blue-600">{money(c.commission)}</td>
                           </tr>
@@ -286,6 +292,20 @@ export const FinancialDashboard = () => {
                 ));
               }}
             />
+
+            {data.commissionWarnings.length > 0 && (
+              <div className="mb-4 flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+                <div>
+                  <p className="font-semibold">Hay psicólogos sin porcentaje de comisión configurado.</p>
+                  <p className="text-sm">
+                    Sus citas no se incluyen en los totales: {data.commissionWarnings
+                      .map((warning) => `${warning.firstName} ${warning.lastName}`.trim())
+                      .join(", ")}.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
               <IncomeByPaymentChart data={data.incomeByPayment} />

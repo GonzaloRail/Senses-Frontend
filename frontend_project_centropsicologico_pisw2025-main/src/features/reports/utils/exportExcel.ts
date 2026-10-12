@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import type { MockReceipt, MockExpense, CommissionByPsychologist, CashFlowData } from "@/shared/interfaces/models/Financial";
+import type { MockReceipt, MockExpense, CommissionReportData, CashFlowData } from "@/shared/interfaces/models/Financial";
 
 function dateDisplay(iso: string) {
   if (!iso) return "";
@@ -42,20 +42,39 @@ export function exportExpensesExcel(data: MockExpense[], filename: string) {
   XLSX.writeFile(wb, `${filename}.xlsx`);
 }
 
-export function exportCommissionsExcel(data: CommissionByPsychologist[], filename: string) {
-  const rows = data.map((c) => ({
+export function exportCommissionsExcel(data: CommissionReportData, filename: string, dateFrom: string, dateTo: string) {
+  const rows = data.rows.map((c) => ({
     Psicólogo: c.psychologist,
-    "% Comisión": `${Math.round(c.commissionRate * 100)}%`,
+    "Citas cobradas": c.receiptsCount,
+    "% aplicado": [...new Set(c.rateBreakdown.map((rate) => rate.percentage))].map((rate) => `${rate}%`).join(" / "),
     "Total bruto": c.grossIncome,
     Comisión: c.commission,
-    "Senses 8%": c.sensesFee,
-    "IGV 18%": c.igv,
-    Costos: c.costs,
+    "Margen neto": c.clinicNet,
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
   ws["!cols"] = Object.keys(rows[0] || {}).map((k) => ({ wch: Math.max(k.length * 1.5, 12) }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Comisiones");
+
+  const summaryRows = [
+    { Concepto: "Periodo", Valor: `${dateDisplay(dateFrom)} - ${dateDisplay(dateTo)}` },
+    { Concepto: "Ingreso bruto", Valor: data.summary.grossIncome },
+    { Concepto: "Comisiones", Valor: data.summary.commissionAmount },
+    { Concepto: "Margen neto", Valor: data.summary.clinicNetAmount },
+    { Concepto: "Citas cobradas", Valor: data.summary.paidAppointmentsCount },
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "Resumen");
+
+  if (data.warnings.length > 0) {
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet(data.warnings.map((warning) => ({
+        Psicólogo: `${warning.firstName} ${warning.lastName}`.trim(),
+        Advertencia: warning.message,
+      }))),
+      "Advertencias"
+    );
+  }
   XLSX.writeFile(wb, `${filename}.xlsx`);
 }
 
