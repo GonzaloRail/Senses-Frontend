@@ -160,7 +160,6 @@ export const IngresoForm = ({ onSubmit, onCancel, isPending }: Props) => {
       patientId: selectedPatient.id,
       totalAmount,
       payment: paymentMethod,
-      paidAt: new Date().toISOString(),
       clientName: clientName.trim(),
       clientDocument: clientDni.trim(),
       clientPhone: phone.trim(),

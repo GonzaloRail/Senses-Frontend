@@ -1,4 +1,5 @@
 import type { MockReceipt } from "@/shared/interfaces/models/Financial";
+import { getEffectiveIncomeAmount } from "@/features/ingresos/utils/incomeCalculations";
 
 interface Props {
   data: MockReceipt[];
@@ -26,7 +27,7 @@ function badge(status: string) {
 export const ReceiptsReport = ({ data }: Props) => {
   const vigentes = data.filter((r) => r.status === "Vigente").length;
   const anulados = data.filter((r) => r.status === "Anulado").length;
-  const totalIncome = data.filter((r) => r.status !== "Anulado").reduce((s, r) => s + r.total, 0);
+  const totalIncome = data.reduce((s, r) => s + getEffectiveIncomeAmount(r), 0);
 
   return (
     <div className="overflow-x-auto">
@@ -38,13 +39,14 @@ export const ReceiptsReport = ({ data }: Props) => {
             <th className="p-3 text-left font-bold text-muted-foreground">Servicio</th>
             <th className="p-3 text-left font-bold text-muted-foreground">Psicólogo</th>
             <th className="p-3 text-left font-bold text-muted-foreground">Pago</th>
-            <th className="p-3 text-right font-bold text-muted-foreground">Total</th>
+            <th className="p-3 text-right font-bold text-muted-foreground">Importe original</th>
+            <th className="p-3 text-right font-bold text-muted-foreground">Ingreso efectivo</th>
             <th className="p-3 text-left font-bold text-muted-foreground">Estado</th>
           </tr>
         </thead>
         <tbody>
           {data.length === 0 ? (
-            <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">Sin resultados</td></tr>
+            <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">Sin resultados</td></tr>
           ) : (
             data.map((r) => (
               <tr key={r.id} className="border-t hover:bg-muted/30">
@@ -54,6 +56,7 @@ export const ReceiptsReport = ({ data }: Props) => {
                 <td className="p-3">{r.psychologist}</td>
                 <td className="p-3">{r.payment}</td>
                 <td className="p-3 text-right">{money(r.total)}</td>
+                <td className="p-3 text-right">{money(getEffectiveIncomeAmount(r))}</td>
                 <td className="p-3">{badge(r.status)}</td>
               </tr>
             ))

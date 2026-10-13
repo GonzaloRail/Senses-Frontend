@@ -9,6 +9,7 @@ export const useIngresosList = () =>
   useQuery({
     queryKey: INGRESOS_QUERY_KEY,
     queryFn: ingresosApi.getAll,
+    refetchOnWindowFocus: "always",
   });
 
 export const useIngresosFiltered = (filters: IncomeReceiptFilters) =>
@@ -16,6 +17,7 @@ export const useIngresosFiltered = (filters: IncomeReceiptFilters) =>
     queryKey: [...INGRESOS_QUERY_KEY, "filtered", filters],
     queryFn: () => ingresosApi.getFiltered(filters),
     enabled: true,
+    refetchOnWindowFocus: "always",
   });
 
 export const useIngresoById = (id: string | undefined) =>

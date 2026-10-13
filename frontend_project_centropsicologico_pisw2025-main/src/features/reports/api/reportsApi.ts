@@ -4,6 +4,8 @@ import { ingresosApi } from "@/features/ingresos/api/ingresosApi";
 import { accountingExpensesApi } from "@/features/accounting/api/accountingExpensesApi";
 import type { AccountingExpense } from "@/features/accounting/api/accountingExpensesApi";
 import { getCommissionReportApi } from "@/features/commissions/api/commissionsApi";
+import { getEffectiveIncomeAmount, isEffectiveIncome } from "@/features/ingresos/utils/incomeCalculations";
+import { startOfLimaDayIso } from "@/shared/utils/limaDates";
 
 export interface ReportFilters {
   dateFrom: string;
@@ -19,7 +21,7 @@ function incomeToMock(item: import("@/shared/interfaces/models/IncomeReceipt").I
   return {
     id: item.id, date: item.date, client: item.client, patient: item.patient,
     service: item.service, psychologist: item.psychologist,
-    payment: item.payment, total: item.total, status: item.status,
+    payment: item.payment, total: item.total, effectiveAmount: item.effectiveAmount, status: item.status,
   };
 }
 
@@ -44,7 +46,7 @@ function expenseToMock(item: import("@/features/accounting/api/accountingExpense
 async function fetchOpeningBalance(toDate: string): Promise<number> {
   try {
     const params: Record<string, string> = {};
-    if (toDate) params.to = new Date(toDate).toISOString();
+    if (toDate) params.to = startOfLimaDayIso(toDate);
     const response = await api.get("/api/v1/accounting/balance", { params });
     return Number(response.data?.totals?.availableBalance) || 0;
   } catch {
@@ -97,7 +99,9 @@ export async function fetchReport(type: ReportType, filters: ReportFilters) {
         fetchOpeningBalance(filters.dateFrom),
       ]);
 
-      const incomes = incomeList.filter((r) => r.status !== "Anulado").map(incomeToMock);
+      const incomes = incomeList.filter(isEffectiveIncome).map((item) => ({
+        ...incomeToMock(item), total: getEffectiveIncomeAmount(item),
+      }));
       const exps = (expenseResult?.data ?? [])
         .filter((e) => e.status === "APPROVED")
         .map(expenseToMock);

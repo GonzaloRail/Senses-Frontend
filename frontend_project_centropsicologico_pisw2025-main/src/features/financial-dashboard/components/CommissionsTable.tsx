@@ -5,11 +5,13 @@ interface Props {
   onViewPsychologist: (name: string) => void;
 }
 
-function money(n: number) {
+function money(n: number | null) {
+  if (n === null) return "Pendiente";
   return `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function ratesLabel(item: CommissionByPsychologist) {
+  if (item.commissionRate === null) return "Tasas pendientes";
   const rates = [...new Set(item.rateBreakdown.map((rate) => rate.percentage))];
   return rates.length > 0 ? rates.map((rate) => `${rate}%`).join(", ") : `${item.commissionRate}%`;
 }
@@ -47,8 +49,8 @@ export const CommissionsTable = ({ data, onViewPsychologist }: Props) => {
                   <td className="p-3 font-medium">{c.psychologist}</td>
                   <td className="p-3 text-right">{ratesLabel(c)}</td>
                   <td className="p-3 text-right">{money(c.grossIncome)}</td>
-                  <td className="p-3 text-right font-bold text-blue-600">{money(c.commission)}</td>
-                  <td className="p-3 text-right font-medium text-emerald-700">{money(c.clinicNet)}</td>
+                  <td className="p-3 text-right font-bold text-blue-600">{money(c.commission)}{c.commission === null && <p className="text-xs font-normal">Calculado: {money(c.knownCommissionAmount)}</p>}</td>
+                  <td className="p-3 text-right font-medium text-emerald-700">{money(c.clinicNet)}{c.clinicNet === null && <p className="text-xs font-normal">Calculado: {money(c.knownClinicNetAmount)} · Bruto sin tasa: {money(c.unresolvedGrossIncome)}</p>}</td>
                   <td className="p-3 text-center">
                     <button
                       onClick={() => onViewPsychologist(c.psychologist)}

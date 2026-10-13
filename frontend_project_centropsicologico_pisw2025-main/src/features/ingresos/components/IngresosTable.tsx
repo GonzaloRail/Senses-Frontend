@@ -12,6 +12,7 @@ import { dateDisplay, money, pad } from "../utils/ingresosUtils";
 import { ChangeRequestModal } from "./ChangeRequestModal";
 import { EditIncomeModal } from "./EditIncomeModal";
 import type { IncomeReceipt } from "@/shared/interfaces/models/IncomeReceipt";
+import { getEffectiveIncomeAmount } from "../utils/incomeCalculations";
 
 interface Props {
   receipts: IncomeReceipt[];
@@ -65,6 +66,7 @@ export const IngresosTable = ({ receipts, onView, onShowReceipt }: Props) => {
               <TableHead className="text-right">Subtotal</TableHead>
               <TableHead className="text-right">IGV</TableHead>
               <TableHead className="text-right">Total</TableHead>
+              <TableHead className="text-right">Ingreso efectivo</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Usuario</TableHead>
               <TableHead></TableHead>
@@ -87,6 +89,7 @@ export const IngresosTable = ({ receipts, onView, onShowReceipt }: Props) => {
                 <TableCell className="text-right">{money(r.subtotal)}</TableCell>
                 <TableCell className="text-right">{money(r.igv)}</TableCell>
                 <TableCell className="text-right font-bold">{money(r.total)}</TableCell>
+                <TableCell className="text-right">{money(getEffectiveIncomeAmount(r))}</TableCell>
                 <TableCell>{statusBadge(r.status)}</TableCell>
                 <TableCell className="text-xs">{r.createdBy}</TableCell>
                 <TableCell>

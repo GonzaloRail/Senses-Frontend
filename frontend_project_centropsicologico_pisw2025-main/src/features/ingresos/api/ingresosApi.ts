@@ -1,4 +1,6 @@
 import api from "@/api/api";
+import { dayAfterLimaIso, limaDate, startOfLimaDayIso } from "@/shared/utils/limaDates";
+import { getBackendEffectiveIncomeAmount } from "../utils/incomeCalculations";
 import type {
   IncomeReceipt,
   IncomeReceiptFilters,
@@ -52,7 +54,7 @@ function mapBackendIncome(item: any): IncomeReceipt {
     id: item.id,
     series: item.series,
     number: item.receiptNumber,
-    date: item.paidAt?.slice(0, 10) ?? "",
+    date: item.paidAt ? limaDate(item.paidAt) : "",
     client: item.clientName ?? "",
     clientDni: item.clientDocument ?? "",
     patient: item.patientNameSnapshot ?? "",
@@ -65,6 +67,7 @@ function mapBackendIncome(item: any): IncomeReceipt {
     subtotal: Number(item.subtotal),
     igv: Number(item.taxAmount),
     total: Number(item.totalAmount),
+    effectiveAmount: getBackendEffectiveIncomeAmount(item),
     status: (STATUS_TO_SPANISH[item.status] ?? "Vigente") as IncomeReceipt["status"],
     createdBy: item.createdBy ? `${item.createdBy.firstName ?? ""} ${item.createdBy.lastName ?? ""}`.trim() : "",
     createdAt: item.createdAt ?? "",
@@ -72,13 +75,16 @@ function mapBackendIncome(item: any): IncomeReceipt {
 }
 
 function mapDailyRegisterEntry(item: any): IncomeReceipt {
-  const [series = "", numStr = "0"] = (item.receiptCode ?? "").split("-");
+  const receiptCode = item.receiptCode ?? "";
+  const separator = receiptCode.lastIndexOf("-");
+  const series = separator < 0 ? receiptCode : receiptCode.slice(0, separator);
+  const numStr = separator < 0 ? "0" : receiptCode.slice(separator + 1);
   const firstPsych = item.psychologists?.[0];
   return {
     id: item.id,
     series,
     number: parseInt(numStr, 10) || 0,
-    date: item.paidAt?.slice(0, 10) ?? "",
+    date: item.paidAt ? limaDate(item.paidAt) : "",
     client: item.clientName ?? "",
     clientDni: item.clientDocument ?? "",
     patient: item.patientName ?? "",
@@ -91,6 +97,7 @@ function mapDailyRegisterEntry(item: any): IncomeReceipt {
     subtotal: Number(item.subtotal),
     igv: Number(item.taxAmount),
     total: Number(item.grossAmount),
+    effectiveAmount: getBackendEffectiveIncomeAmount({ ...item, totalAmount: item.grossAmount, effectiveAmount: item.netPaidAmount }),
     status: (STATUS_TO_SPANISH[item.status] ?? "Vigente") as IncomeReceipt["status"],
     createdBy: "",
     createdAt: item.paidAt ?? "",
@@ -116,6 +123,19 @@ function mapBackendChangeRequest(item: any): ChangeRequest {
   };
 }
 
+async function fetchIncomePages(params: Record<string, string | number> = {}): Promise<IncomeReceipt[]> {
+  const requestPage = async (page: number) => {
+    const { data } = await api.get("/api/v1/accounting/incomes", { params: { ...params, page, take: 100 } });
+    return data;
+  };
+  const firstPage = await requestPage(1);
+  const remainingPages = await Promise.all(Array.from(
+    { length: Math.max(Number(firstPage.totalPages ?? 1) - 1, 0) },
+    (_, index) => requestPage(index + 2),
+  ));
+  return [firstPage, ...remainingPages].flatMap((page) => page.items ?? []).map(mapBackendIncome);
+}
+
 export const ingresosApi = {
   async getPatientBillingContext(patientId: string): Promise<PatientBillingContext> {
     const response = await api.get(
@@ -125,10 +145,7 @@ export const ingresosApi = {
   },
 
   async getAll(): Promise<IncomeReceipt[]> {
-    const response = await api.get("/api/v1/accounting/incomes", {
-      params: { page: 1, take: 100 },
-    });
-    return (response.data.items ?? []).map(mapBackendIncome);
+    return fetchIncomePages();
   },
 
   async getById(id: string): Promise<IncomeReceipt | undefined> {
@@ -144,12 +161,8 @@ export const ingresosApi = {
   async getFiltered(filters: IncomeReceiptFilters): Promise<IncomeReceipt[]> {
     const params: Record<string, string | number> = { page: 1, take: 100 };
 
-    if (filters.dateFrom) params.from = new Date(filters.dateFrom).toISOString();
-    if (filters.dateTo) {
-      const to = new Date(filters.dateTo);
-      to.setDate(to.getDate() + 1);
-      params.to = to.toISOString();
-    }
+    if (filters.dateFrom) params.from = startOfLimaDayIso(filters.dateFrom);
+    if (filters.dateTo) params.to = dayAfterLimaIso(filters.dateTo);
 
     const searchTerms: string[] = [];
     if (filters.patient) searchTerms.push(filters.patient);
@@ -167,8 +180,7 @@ export const ingresosApi = {
 
     if (filters.number) params.receiptNumber = parseInt(filters.number, 10);
 
-    const response = await api.get("/api/v1/accounting/incomes", { params });
-    return (response.data.items ?? []).map(mapBackendIncome);
+    return fetchIncomePages(params);
   },
 
   async create(input: CreateIncomePayload): Promise<IncomeReceipt> {

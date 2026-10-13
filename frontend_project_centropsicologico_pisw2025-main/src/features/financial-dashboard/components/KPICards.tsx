@@ -8,7 +8,8 @@ interface Props {
   onCommissionClick: () => void;
 }
 
-function money(n: number) {
+function money(n: number | null) {
+  if (n === null) return "Pendiente";
   return `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 

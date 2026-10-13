@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { SiteHeader } from "@/shared/components/SiteHeader";
 import { Loading } from "@/shared/components/Loading";
 import { ingresosApi } from "../api/ingresosApi";
+import { getEffectiveIncomeAmount, isEffectiveIncome } from "../utils/incomeCalculations";
 
 interface PsychologistRow {
   psychologist: string;
@@ -28,10 +29,10 @@ function fetchReport(dateFrom: string, dateTo: string): Promise<PsychologistRow[
     const grouped = new Map<string, { total: number; patients: Set<string>; count: number }>();
 
     for (const item of list) {
-      if (item.status === "Anulado") continue;
+      if (!isEffectiveIncome(item)) continue;
       const name = item.psychologist || "Sin asignar";
       const entry = grouped.get(name) || { total: 0, patients: new Set<string>(), count: 0 };
-      entry.total += item.total;
+      entry.total += getEffectiveIncomeAmount(item);
       if (item.patient) entry.patients.add(item.patient);
       entry.count += 1;
       grouped.set(name, entry);
@@ -51,15 +52,19 @@ function fetchReport(dateFrom: string, dateTo: string): Promise<PsychologistRow[
 export const IncomeReportByPsychologist = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [generatedRange, setGeneratedRange] = useState<{ from: string; to: string } | null>(null);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["incomeReportByPsychologist", dateFrom, dateTo],
-    queryFn: () => fetchReport(dateFrom, dateTo),
-    enabled: false,
+    queryKey: ["incomeReportByPsychologist", generatedRange?.from, generatedRange?.to],
+    queryFn: () => fetchReport(generatedRange!.from, generatedRange!.to),
+    enabled: !!generatedRange,
+    refetchOnWindowFocus: "always",
   });
 
   const handleGenerate = () => {
-    if (dateFrom && dateTo) refetch();
+    if (!dateFrom || !dateTo || dateFrom > dateTo) return;
+    if (generatedRange?.from === dateFrom && generatedRange.to === dateTo) void refetch();
+    else setGeneratedRange({ from: dateFrom, to: dateTo });
   };
 
   return (
@@ -85,7 +90,7 @@ export const IncomeReportByPsychologist = () => {
                     <Label>Hasta</Label>
                     <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
                   </div>
-                  <Button onClick={handleGenerate} disabled={!dateFrom || !dateTo}>
+                  <Button onClick={handleGenerate} disabled={!dateFrom || !dateTo || dateFrom > dateTo}>
                     Generar reporte
                   </Button>
                 </div>

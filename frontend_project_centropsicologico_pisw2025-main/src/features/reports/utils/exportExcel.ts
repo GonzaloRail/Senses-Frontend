@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import type { MockReceipt, MockExpense, CommissionReportData, CashFlowData } from "@/shared/interfaces/models/Financial";
+import { getEffectiveIncomeAmount } from "@/features/ingresos/utils/incomeCalculations";
 
 function dateDisplay(iso: string) {
   if (!iso) return "";
@@ -14,7 +15,8 @@ export function exportIncomesExcel(data: MockReceipt[], filename: string) {
     Servicio: r.service,
     Psicólogo: r.psychologist,
     "Forma de pago": r.payment,
-    Total: r.total,
+    "Importe original": r.total,
+    "Ingreso efectivo": getEffectiveIncomeAmount(r),
     Estado: r.status,
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -48,8 +50,12 @@ export function exportCommissionsExcel(data: CommissionReportData, filename: str
     "Citas cobradas": c.receiptsCount,
     "% aplicado": [...new Set(c.rateBreakdown.map((rate) => rate.percentage))].map((rate) => `${rate}%`).join(" / "),
     "Total bruto": c.grossIncome,
-    Comisión: c.commission,
-    "Margen neto": c.clinicNet,
+    Comisión: c.commission ?? "Pendiente",
+    "Margen neto": c.clinicNet ?? "Pendiente",
+    Estado: c.calculationStatus === "CALCULATED" ? "Calculado" : "Pendiente de tasa",
+    "Comisión calculada": c.knownCommissionAmount,
+    "Margen calculado": c.knownClinicNetAmount,
+    "Bruto sin tasa": c.unresolvedGrossIncome,
   }));
   const ws = XLSX.utils.json_to_sheet(rows);
   ws["!cols"] = Object.keys(rows[0] || {}).map((k) => ({ wch: Math.max(k.length * 1.5, 12) }));
@@ -59,8 +65,11 @@ export function exportCommissionsExcel(data: CommissionReportData, filename: str
   const summaryRows = [
     { Concepto: "Periodo", Valor: `${dateDisplay(dateFrom)} - ${dateDisplay(dateTo)}` },
     { Concepto: "Ingreso bruto", Valor: data.summary.grossIncome },
-    { Concepto: "Comisiones", Valor: data.summary.commissionAmount },
-    { Concepto: "Margen neto", Valor: data.summary.clinicNetAmount },
+    { Concepto: "Comisiones", Valor: data.summary.commissionAmount ?? "Pendiente" },
+    { Concepto: "Margen neto", Valor: data.summary.clinicNetAmount ?? "Pendiente" },
+    { Concepto: "Comisión calculada (no definitiva si faltan tasas)", Valor: data.summary.knownCommissionAmount },
+    { Concepto: "Margen calculado (no definitivo si faltan tasas)", Valor: data.summary.knownClinicNetAmount },
+    { Concepto: "Bruto sin tasa", Valor: data.summary.unresolvedGrossIncome },
     { Concepto: "Citas cobradas", Valor: data.summary.paidAppointmentsCount },
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), "Resumen");
@@ -71,6 +80,9 @@ export function exportCommissionsExcel(data: CommissionReportData, filename: str
       XLSX.utils.json_to_sheet(data.warnings.map((warning) => ({
         Psicólogo: `${warning.firstName} ${warning.lastName}`.trim(),
         Advertencia: warning.message,
+        Cita: warning.appointmentId ?? "",
+        Comprobante: warning.receiptLabel ?? "",
+        "Fecha de cobro (Lima)": warning.paidAt ? new Date(warning.paidAt).toLocaleString("es-PE", { timeZone: "America/Lima" }) : "",
       }))),
       "Advertencias"
     );

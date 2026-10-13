@@ -6,7 +6,9 @@ import {
   CalendarDays,
   FileDown,
   FileSpreadsheet,
+  Eye,
   Pencil,
+  RefreshCw,
   Search,
   Stethoscope,
   WalletCards,
@@ -17,7 +19,6 @@ import { Loading } from "@/shared/components/Loading";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -28,41 +29,16 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/store/auth/auth.store";
 import type {
-  CommissionByPsychologist,
   CommissionReportData,
 } from "@/shared/interfaces/models/Financial";
 import { getCommissionReportApi } from "../api/commissionsApi";
 import { exportCommissionsExcel } from "@/features/reports/utils/exportExcel";
 import { exportToPdf } from "@/features/reports/utils/exportPdf";
+import { CommissionDetailsDialog } from "../components/CommissionDetailsDialog";
+import { getLimaMonthRange } from "@/shared/utils/limaDates";
+import { commissionMoney as money, summarizeCommissionRows } from "../utils/commissionReport";
 
-function getCurrentMonthRange() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const monthIndex = today.getMonth();
-  const month = String(monthIndex + 1).padStart(2, "0");
-  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
-
-  return {
-    from: `${year}-${month}-01`,
-    to: `${year}-${month}-${String(lastDay).padStart(2, "0")}`,
-  };
-}
-
-function money(value: number) {
-  return `S/ ${value.toLocaleString("es-PE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
-
-function rates(item: CommissionByPsychologist) {
-  const percentages = [
-    ...new Set(item.rateBreakdown.map((rate) => rate.percentage)),
-  ];
-  return percentages.length > 0 ? percentages : [item.commissionRate];
-}
-
-const initialRange = getCurrentMonthRange();
+const initialRange = getLimaMonthRange();
 
 export const CommissionsPage = () => {
   const navigate = useNavigate();
@@ -70,11 +46,18 @@ export const CommissionsPage = () => {
   const [dateFrom, setDateFrom] = useState(initialRange.from);
   const [dateTo, setDateTo] = useState(initialRange.to);
   const [search, setSearch] = useState("");
+  const [details, setDetails] = useState<{
+    psychologistId: string;
+    psychologistName: string;
+    dateFrom: string;
+    dateTo: string;
+  } | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["commission-report", dateFrom, dateTo],
     queryFn: () => getCommissionReportApi({ dateFrom, dateTo }),
     enabled: Boolean(dateFrom && dateTo && dateFrom <= dateTo),
+    refetchOnWindowFocus: "always",
   });
 
   const visibleReport = useMemo<CommissionReportData | undefined>(() => {
@@ -94,19 +77,12 @@ export const CommissionsPage = () => {
     return {
       rows,
       warnings,
-      summary: {
-        grossIncome: rows.reduce((total, item) => total + item.grossIncome, 0),
-        commissionAmount: rows.reduce((total, item) => total + item.commission, 0),
-        clinicNetAmount: rows.reduce((total, item) => total + item.clinicNet, 0),
-        paidAppointmentsCount: rows.reduce(
-          (total, item) => total + item.receiptsCount,
-          0
-        ),
-      },
+      summary: summarizeCommissionRows(rows),
     };
   }, [data, search]);
 
   const exportReport = visibleReport ?? data;
+  const summary = isError ? undefined : data?.summary;
 
   const handleExcel = () => {
     if (!exportReport) return;
@@ -131,29 +107,37 @@ export const CommissionsPage = () => {
         <section className="grid gap-4 md:grid-cols-3">
           <SummaryCard
             label="Ingreso bruto del periodo"
-            value={money(data?.summary.grossIncome ?? 0)}
+            value={summary ? money(summary.grossIncome) : "—"}
             icon={<WalletCards className="h-5 w-5" />}
           />
           <SummaryCard
             label="Comisiones a pagar"
-            value={money(data?.summary.commissionAmount ?? 0)}
+            value={summary ? money(summary.commissionAmount) : "—"}
             icon={<Stethoscope className="h-5 w-5" />}
             valueClassName="text-emerald-600"
           />
           <SummaryCard
             label="Margen neto de la clínica"
-            value={money(data?.summary.clinicNetAmount ?? 0)}
+            value={summary ? money(summary.clinicNetAmount) : "—"}
             icon={<FileDown className="h-5 w-5" />}
             valueClassName="text-blue-600"
           />
         </section>
+
+        {!isError && (data?.warnings.length ?? 0) > 0 && (
+          <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" role="alert">
+            El ingreso bruto incluye todos los cobros efectivos. Comisión y margen definitivos están pendientes porque faltan tasas.
+            Comisión calculada: {money(data!.summary.knownCommissionAmount)}; margen calculado: {money(data!.summary.knownClinicNetAmount)};
+            bruto pendiente de tasa: {money(data!.summary.unresolvedGrossIncome)}.
+          </p>
+        )}
 
         <Card className="overflow-hidden shadow-sm">
           <div className="flex flex-col gap-4 border-b p-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h2 className="text-lg font-semibold">Comisiones por psicólogo</h2>
               <p className="text-sm text-muted-foreground">
-                La comisión se calcula exclusivamente sobre citas efectivamente cobradas.
+                La comisión se calcula sobre cobros efectivos, con la tasa vigente en la fecha y hora de cada cobro.
               </p>
             </div>
 
@@ -188,8 +172,17 @@ export const CommissionsPage = () => {
               </div>
               <Button
                 type="button"
+                variant="outline"
+                onClick={() => refetch()}
+                disabled={isFetching || !dateFrom || !dateTo || dateFrom > dateTo}
+              >
+                <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+                {isFetching ? "Actualizando..." : "Actualizar"}
+              </Button>
+              <Button
+                type="button"
                 onClick={handleExcel}
-                disabled={!exportReport || isLoading}
+                disabled={!exportReport || isFetching || isError || dateFrom > dateTo}
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
                 <FileSpreadsheet className="h-4 w-4" />
@@ -198,7 +191,7 @@ export const CommissionsPage = () => {
               <Button
                 type="button"
                 onClick={handlePdf}
-                disabled={!exportReport || isLoading}
+                disabled={!exportReport || isFetching || isError || dateFrom > dateTo}
                 variant="destructive"
               >
                 <FileDown className="h-4 w-4" />
@@ -225,10 +218,22 @@ export const CommissionsPage = () => {
                   <div>
                     <p className="font-semibold">Hay psicólogos sin una tasa válida.</p>
                     <p>
-                      {visibleReport?.warnings
-                        .map((warning) => `${warning.firstName} ${warning.lastName}`.trim())
-                        .join(", ")}. Configura su porcentaje para incluirlos en el cálculo.
+                      Revisa las vigencias de sus cobros. Configurar una tasa desde hoy no resuelve necesariamente los cobros anteriores.
                     </p>
+                    <div className="mt-2 space-y-2">
+                      {visibleReport?.warnings.map((warning) => (
+                        <div key={warning.allocationId ?? warning.psychologistId} className="flex flex-wrap items-center gap-3">
+                          <span>{`${warning.firstName} ${warning.lastName}`.trim()}</span>
+                          {warning.receiptLabel && <span>{warning.receiptLabel}</span>}
+                          {warning.paidAt && <span>Cobro: {new Date(warning.paidAt).toLocaleString("es-PE", { timeZone: "America/Lima" })}</span>}
+                          <Button size="sm" variant="outline" onClick={() => setDetails({
+                            psychologistId: warning.psychologistId,
+                            psychologistName: `${warning.firstName} ${warning.lastName}`.trim(),
+                            dateFrom, dateTo,
+                          })}>Ver detalles</Button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -240,7 +245,7 @@ export const CommissionsPage = () => {
                       <TableHead>Psicólogo</TableHead>
                       <TableHead className="text-center">Citas cobradas</TableHead>
                       <TableHead className="text-right">Ingreso bruto</TableHead>
-                      <TableHead className="text-center">Comisión</TableHead>
+                      <TableHead className="text-center">Detalle por cita</TableHead>
                       <TableHead className="text-right">A pagar</TableHead>
                       <TableHead className="text-right">Margen neto</TableHead>
                       {canEdit && <TableHead className="text-center">Acciones</TableHead>}
@@ -253,7 +258,9 @@ export const CommissionsPage = () => {
                           colSpan={canEdit ? 7 : 6}
                           className="h-40 text-center text-muted-foreground"
                         >
-                          No hay citas cobradas para los filtros seleccionados.
+                          {(visibleReport?.warnings.length ?? 0) > 0
+                            ? "Hay cobros pendientes de tasa. No hay filas con cálculo completo para estos filtros."
+                            : "No hay citas cobradas para los filtros seleccionados."}
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -262,20 +269,29 @@ export const CommissionsPage = () => {
                           <TableCell className="font-medium">{item.psychologist}</TableCell>
                           <TableCell className="text-center">{item.receiptsCount}</TableCell>
                           <TableCell className="text-right">{money(item.grossIncome)}</TableCell>
-                          <TableCell>
-                            <div className="flex justify-center gap-1">
-                              {rates(item).map((percentage) => (
-                                <Badge key={percentage} variant="secondary">
-                                  {percentage}%
-                                </Badge>
-                              ))}
-                            </div>
+                          <TableCell className="text-center">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setDetails({
+                                psychologistId: item.psychologistId,
+                                psychologistName: item.psychologist,
+                                dateFrom,
+                                dateTo,
+                              })}
+                              aria-label={`Ver detalles de comisiones de ${item.psychologist}`}
+                            >
+                              <Eye className="h-4 w-4" />
+                              Ver detalles
+                            </Button>
                           </TableCell>
                           <TableCell className="text-right font-semibold text-emerald-700">
                             {money(item.commission)}
+                            {item.commission === null && <p className="text-xs font-normal text-muted-foreground">Calculado: {money(item.knownCommissionAmount)}</p>}
                           </TableCell>
                           <TableCell className="text-right font-semibold">
                             {money(item.clinicNet)}
+                            {item.clinicNet === null && <p className="text-xs font-normal text-muted-foreground">Calculado: {money(item.knownClinicNetAmount)} · Bruto sin tasa: {money(item.unresolvedGrossIncome)}</p>}
                           </TableCell>
                           {canEdit && (
                             <TableCell className="text-center">
@@ -309,6 +325,9 @@ export const CommissionsPage = () => {
           )}
         </Card>
       </main>
+      {details && (
+        <CommissionDetailsDialog {...details} onClose={() => setDetails(null)} />
+      )}
     </div>
   );
 };

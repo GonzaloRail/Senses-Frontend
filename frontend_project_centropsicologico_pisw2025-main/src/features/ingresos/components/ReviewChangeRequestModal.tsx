@@ -117,6 +117,10 @@ export const ReviewChangeRequestModal = ({ request, open, onClose, onReviewed }:
     if (comment.trim()) payload.reviewComment = comment.trim();
 
     if (decision === "APPROVED" && isCorrection) {
+      if (!incomeData?.paidAt || Number.isNaN(new Date(incomeData.paidAt).getTime())) {
+        toast.error("No se pudo obtener la fecha del cobro original. Recarga la solicitud antes de aprobarla.");
+        return;
+      }
       if (allocations.length === 0) {
         toast.error("No se pudieron cargar las asignaciones del ingreso original");
         return;
@@ -129,6 +133,7 @@ export const ReviewChangeRequestModal = ({ request, open, onClose, onReviewed }:
 
       payload.replacement = {
         totalAmount: round2(total),
+        paidAt: incomeData.paidAt,
         paymentMethod: PAYMENT_METHOD_TO_BACKEND[paymentMethod] ?? paymentMethod.toUpperCase(),
         clientName: clientName.trim(),
         clientDocument: clientDocument.trim(),

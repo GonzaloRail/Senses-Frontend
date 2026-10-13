@@ -24,5 +24,6 @@ export function useReportsData(filters: ReportFilters) {
     }),
     enabled: !!(filters.dateFrom && filters.dateTo),
     staleTime: 30 * 1000,
+    refetchOnWindowFocus: "always",
   });
 }

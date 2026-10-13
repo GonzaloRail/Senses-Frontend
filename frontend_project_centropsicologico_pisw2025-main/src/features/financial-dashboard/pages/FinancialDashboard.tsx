@@ -13,8 +13,11 @@ import { Loading } from "@/shared/components/Loading";
 import { ingresosApi } from "@/features/ingresos/api/ingresosApi";
 import { accountingExpensesApi } from "@/features/accounting/api/accountingExpensesApi";
 import { AlertTriangle } from "lucide-react";
+import { getEffectiveIncomeAmount, isEffectiveIncome } from "@/features/ingresos/utils/incomeCalculations";
+import { getFinancialDateRange } from "../api/financialApi";
 
-function money(n: number) {
+function money(n: number | null) {
+  if (n === null) return "Pendiente";
   return `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
@@ -24,30 +27,10 @@ function dateDisplay(iso: string) {
   return `${d}/${m}/${y}`;
 }
 
-function ratesLabel(rates: { percentage: number }[], fallback: number) {
+function ratesLabel(rates: { percentage: number }[], fallback: number | null) {
+  if (fallback === null) return "Tasas pendientes";
   const percentages = [...new Set(rates.map((rate) => rate.percentage))];
   return percentages.length > 0 ? percentages.map((rate) => `${rate}%`).join(", ") : `${fallback}%`;
-}
-
-function getDateRange(dateMode: DateMode, selectedDate: Date, customFrom: string, customTo: string) {
-  if (dateMode === "day") {
-    const d = selectedDate.toISOString().slice(0, 10);
-    return { from: d, to: d };
-  }
-  if (dateMode === "week") {
-    const to = selectedDate.toISOString().slice(0, 10);
-    const from = new Date(selectedDate.getTime() - 6 * 86400000).toISOString().slice(0, 10);
-    return { from, to };
-  }
-  if (dateMode === "month") {
-    const year = selectedDate.getFullYear();
-    const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
-    const from = `${year}-${month}-01`;
-    const lastDay = new Date(year, selectedDate.getMonth() + 1, 0).getDate();
-    const to = `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
-    return { from, to };
-  }
-  return { from: customFrom, to: customTo };
 }
 
 async function fetchReceipts(from: string, to: string, paymentFilter?: string): Promise<MockReceipt[]> {
@@ -56,11 +39,11 @@ async function fetchReceipts(from: string, to: string, paymentFilter?: string): 
     patient: "", client: "", psychologist: "",
     payment: paymentFilter ?? "", number: "",
   });
-  return list.filter((r) => r.status !== "Anulado").map((r) => ({
+  return list.filter(isEffectiveIncome).map((r) => ({
     id: r.id,
     date: r.date, client: r.client, patient: r.patient,
     service: r.service, psychologist: r.psychologist,
-    payment: r.payment, total: r.total, status: r.status,
+    payment: r.payment, total: getEffectiveIncomeAmount(r), status: r.status,
   }));
 }
 
@@ -103,7 +86,7 @@ export const FinancialDashboard = () => {
     dateMode, selectedDate, paymentFilter, customFrom, customTo
   );
 
-  const dr = getDateRange(dateMode, selectedDate, customFrom, customTo);
+  const dr = getFinancialDateRange(dateMode, selectedDate, customFrom, customTo);
 
   const showModal = (title: string, content: React.ReactNode) => {
     setModalTitle(title);
@@ -124,7 +107,7 @@ export const FinancialDashboard = () => {
             <th className="p-2 text-left font-bold text-muted-foreground">Servicio</th>
             <th className="p-2 text-left font-bold text-muted-foreground">Psicólogo</th>
             <th className="p-2 text-left font-bold text-muted-foreground">Pago</th>
-            <th className="p-2 text-right font-bold text-muted-foreground">Total</th>
+            <th className="p-2 text-right font-bold text-muted-foreground">Ingreso efectivo</th>
           </tr></thead>
           <tbody>
             {receipts.length === 0 ? (
@@ -264,7 +247,7 @@ export const FinancialDashboard = () => {
               ))}
               onCommissionClick={() => {
                 const active = data.commissions.filter((c) => c.grossIncome > 0);
-                const total = data.commissions.reduce((s, c) => s + c.commission, 0);
+                const total = data.summary.totalCommissions;
                 showModal("Detalle de Comisiones Generadas", (
                   <div>
                     <table className="w-full text-sm">
@@ -299,9 +282,9 @@ export const FinancialDashboard = () => {
                 <div>
                   <p className="font-semibold">Hay psicólogos sin porcentaje de comisión configurado.</p>
                   <p className="text-sm">
-                    Sus citas no se incluyen en los totales: {data.commissionWarnings
+                    Sus cobros están incluidos en el bruto, pero comisión y margen definitivos siguen pendientes: {[...new Set(data.commissionWarnings
                       .map((warning) => `${warning.firstName} ${warning.lastName}`.trim())
-                      .join(", ")}.
+                    )].join(", ")}.
                   </p>
                 </div>
               </div>

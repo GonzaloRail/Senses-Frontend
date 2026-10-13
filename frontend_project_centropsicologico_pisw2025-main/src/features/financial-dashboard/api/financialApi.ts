@@ -15,6 +15,8 @@ import { accountingExpensesApi } from "@/features/accounting/api/accountingExpen
 import type { AccountingExpense } from "@/features/accounting/api/accountingExpensesApi";
 import { getCommissionReportApi } from "@/features/commissions/api/commissionsApi";
 import { PAYMENT_METHODS, EXPENSE_TYPES } from "../utils/mockData";
+import { getEffectiveIncomeAmount, isEffectiveIncome } from "@/features/ingresos/utils/incomeCalculations";
+import { getLimaMonthRange, limaDate, startOfLimaDayIso } from "@/shared/utils/limaDates";
 
 export interface DashboardParams {
   dateMode: DateMode;
@@ -33,25 +35,20 @@ export interface DashboardData {
   commissionWarnings: MissingCommissionRate[];
 }
 
-function getDateRange(dateMode: DateMode, selectedDate: Date, customFrom?: string, customTo?: string) {
+export function getFinancialDateRange(dateMode: DateMode, selectedDate: Date, customFrom?: string, customTo?: string) {
   if (dateMode === "day") {
-    const d = selectedDate.toISOString().slice(0, 10);
+    const d = limaDate(selectedDate);
     return { from: d, to: d };
   }
   if (dateMode === "week") {
-    const to = selectedDate.toISOString().slice(0, 10);
-    const from = new Date(selectedDate.getTime() - 6 * 86400000).toISOString().slice(0, 10);
+    const to = limaDate(selectedDate);
+    const from = limaDate(new Date(selectedDate.getTime() - 6 * 86400000));
     return { from, to };
   }
   if (dateMode === "month") {
-    const year = selectedDate.getFullYear();
-    const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
-    const from = `${year}-${month}-01`;
-    const lastDay = new Date(year, selectedDate.getMonth() + 1, 0).getDate();
-    const to = `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
-    return { from, to };
+    return getLimaMonthRange(selectedDate);
   }
-  return { from: customFrom ?? new Date().toISOString().slice(0, 7) + "-01", to: customTo ?? new Date().toISOString().slice(0, 10) };
+  return { from: customFrom || getLimaMonthRange().from, to: customTo || limaDate(new Date()) };
 }
 
 function incomeToMock(item: import("@/shared/interfaces/models/IncomeReceipt").IncomeReceipt): MockReceipt {
@@ -63,7 +60,7 @@ function incomeToMock(item: import("@/shared/interfaces/models/IncomeReceipt").I
     service: item.service,
     psychologist: item.psychologist,
     payment: item.payment,
-    total: item.total,
+    total: getEffectiveIncomeAmount(item),
     status: item.status,
   };
 }
@@ -89,7 +86,7 @@ function expenseToMock(item: import("@/features/accounting/api/accountingExpense
 async function fetchOpeningBalance(toDate: string): Promise<number> {
   try {
     const params: Record<string, string> = {};
-    if (toDate) params.to = new Date(toDate).toISOString();
+    if (toDate) params.to = startOfLimaDayIso(toDate);
     const response = await api.get("/api/v1/accounting/balance", { params });
     return Number(response.data?.totals?.availableBalance) || 0;
   } catch {
@@ -98,7 +95,7 @@ async function fetchOpeningBalance(toDate: string): Promise<number> {
 }
 
 export async function fetchDashboardData(params: DashboardParams): Promise<DashboardData> {
-  const dr = getDateRange(params.dateMode, params.selectedDate, params.customFrom, params.customTo);
+  const dr = getFinancialDateRange(params.dateMode, params.selectedDate, params.customFrom, params.customTo);
 
   const [incomeList, expenseResult, openingBalance, commissionReport] = await Promise.all([
     ingresosApi.getFiltered({
@@ -119,7 +116,7 @@ export async function fetchDashboardData(params: DashboardParams): Promise<Dashb
     .filter((e) => e.status === "APPROVED")
     .map(expenseToMock);
 
-  const receipts = incomeList.filter((r) => r.status !== "Anulado").map(incomeToMock);
+  const receipts = incomeList.filter(isEffectiveIncome).map(incomeToMock);
 
   const totalIncome = receipts.reduce((s, r) => s + r.total, 0);
   const totalExpenses = exps.reduce((s, e) => s + e.amount, 0);

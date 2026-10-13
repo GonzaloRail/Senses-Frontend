@@ -11,6 +11,8 @@ import { getCommissionRatesApi, setCommissionRateApi } from "../../commissions/a
 import { Loading } from "@/shared/components/Loading";
 import type { AxiosError } from "axios";
 import { Info, Percent } from "lucide-react";
+import { findCurrentCommissionRate, getCommissionRateStatus } from "@/features/commissions/utils/commissionRates";
+import { invalidateFinancialQueries } from "@/shared/utils/invalidateFinancialQueries";
 
 interface PsychologistCommissionSettingsProps {
   psychologistId: string;
@@ -23,6 +25,9 @@ function formatLimaDate(value: string) {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
   }).format(new Date(value));
 }
 
@@ -35,15 +40,19 @@ export const PsychologistCommissionSettings = ({ psychologistId, canEdit }: Psyc
     queryKey: ["commissionRates", psychologistId],
     queryFn: () => getCommissionRatesApi(psychologistId),
     enabled: !!psychologistId,
+    refetchOnWindowFocus: "always",
   });
 
   const setRateMutation = useMutation({
     mutationFn: (newRate: { psychologistId: string; percentage: number; validFrom?: string }) => setCommissionRateApi(newRate),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Honorarios actualizados correctamente");
       setPercentage("");
       setValidFrom("");
-      queryClient.invalidateQueries({ queryKey: ["commissionRates", psychologistId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["commissionRates", psychologistId] }),
+        invalidateFinancialQueries(queryClient),
+      ]);
     },
     onError: (error: AxiosError<{ message?: string }>) => {
       toast.error(error.response?.data?.message ?? "Ocurrió un error al actualizar los honorarios");
@@ -66,7 +75,8 @@ export const PsychologistCommissionSettings = ({ psychologistId, canEdit }: Psyc
 
   if (isLoading) return <Loading message="Cargando configuración de honorarios..." />;
 
-  const currentRate = rates?.find((r) => r.isActive);
+  const now = new Date();
+  const currentRate = findCurrentCommissionRate(rates ?? [], now);
 
   return (
     <Card className="overflow-hidden shadow-sm">
@@ -83,7 +93,9 @@ export const PsychologistCommissionSettings = ({ psychologistId, canEdit }: Psyc
         <div className="flex gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            La tasa se aplica según la fecha del cobro. Una nueva vigencia conserva el historial y no modifica cálculos anteriores.
+            La tasa se aplica según la fecha y hora del cobro, no según la fecha de la cita.
+            Los cobros previos a la nueva vigencia conservan su porcentaje. Si eliges una fecha pasada,
+            los cobros desde esa fecha pueden recalcularse.
           </p>
         </div>
 
@@ -96,7 +108,7 @@ export const PsychologistCommissionSettings = ({ psychologistId, canEdit }: Psyc
               <span className="text-3xl font-bold text-primary">
                 {currentRate ? `${currentRate.percentage}%` : "No configurado"}
               </span>
-              {currentRate && <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Activa</Badge>}
+              {currentRate && <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Vigente</Badge>}
             </div>
 
             {canEdit ? (
@@ -112,6 +124,7 @@ export const PsychologistCommissionSettings = ({ psychologistId, canEdit }: Psyc
                     onChange={(e) => setPercentage(e.target.value)}
                     min="0"
                     max="100"
+                    step="0.01"
                   />
                 </div>
                 <div className="space-y-1">
@@ -133,7 +146,7 @@ export const PsychologistCommissionSettings = ({ psychologistId, canEdit }: Psyc
                 {setRateMutation.isPending ? "Guardando..." : "Aplicar"}
               </Button>
               <p className="text-xs text-muted-foreground">
-                Si dejas la fecha en blanco, la nueva tasa se aplicará a partir de hoy.
+                Sin fecha, se aplica desde el momento de guardar. Con fecha, comienza a las 00:00 de ese día en Lima.
               </p>
             </div>
             ) : (
@@ -147,7 +160,7 @@ export const PsychologistCommissionSettings = ({ psychologistId, canEdit }: Psyc
           <div className="space-y-4">
             <div>
               <h3 className="font-semibold">Historial de tasas</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Cada cambio mantiene su periodo de vigencia.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Fechas y horas de vigencia en Lima. Cada cambio mantiene su periodo.</p>
             </div>
             {rates && rates.length > 0 ? (
               <div className="border rounded-md overflow-hidden">
@@ -167,10 +180,10 @@ export const PsychologistCommissionSettings = ({ psychologistId, canEdit }: Psyc
                         <TableCell>{formatLimaDate(rate.validFrom)}</TableCell>
                         <TableCell>{rate.validTo ? formatLimaDate(rate.validTo) : "-"}</TableCell>
                         <TableCell>
-                          {rate.isActive ? (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Activo</Badge>
+                          {getCommissionRateStatus(rate, now) === "Vigente" ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Vigente</Badge>
                           ) : (
-                            <Badge variant="outline" className="bg-muted text-muted-foreground">Vencido</Badge>
+                            <Badge variant="outline" className="bg-muted text-muted-foreground">{getCommissionRateStatus(rate, now)}</Badge>
                           )}
                         </TableCell>
                       </TableRow>

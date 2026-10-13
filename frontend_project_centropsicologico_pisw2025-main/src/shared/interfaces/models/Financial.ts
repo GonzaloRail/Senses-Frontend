@@ -8,7 +8,7 @@ export interface FinancialSummary {
   totalExpenses: number;
   openingBalance: number;
   availableBalance: number;
-  totalCommissions: number;
+  totalCommissions: number | null;
   incomeCount: number;
   expensesCount: number;
 }
@@ -47,10 +47,14 @@ export interface CashFlowData {
 export interface CommissionByPsychologist {
   psychologistId: string;
   psychologist: string;
-  commissionRate: number;
+  commissionRate: number | null;
   grossIncome: number;
-  commission: number;
-  clinicNet: number;
+  commission: number | null;
+  clinicNet: number | null;
+  calculationStatus: "CALCULATED" | "MISSING_COMMISSION_RATE";
+  knownCommissionAmount: number;
+  knownClinicNetAmount: number;
+  unresolvedGrossIncome: number;
   receiptsCount: number;
   rateBreakdown: CommissionRateBreakdown[];
 }
@@ -69,12 +73,20 @@ export interface MissingCommissionRate {
   lastName: string;
   code: "MISSING_COMMISSION_RATE";
   message: string;
+  appointmentId?: string;
+  allocationId?: string;
+  receiptLabel?: string;
+  paidAt?: string;
 }
 
 export interface CommissionReportSummary {
   grossIncome: number;
-  commissionAmount: number;
-  clinicNetAmount: number;
+  commissionAmount: number | null;
+  clinicNetAmount: number | null;
+  calculationStatus: "CALCULATED" | "MISSING_COMMISSION_RATE";
+  knownCommissionAmount: number;
+  knownClinicNetAmount: number;
+  unresolvedGrossIncome: number;
   paidAppointmentsCount: number;
 }
 
@@ -93,6 +105,7 @@ export interface MockReceipt {
   psychologist: string;
   payment: string;
   total: number;
+  effectiveAmount?: number;
   status: "Vigente" | "Anulado" | "Corregido";
 }
 

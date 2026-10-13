@@ -15,6 +15,7 @@ export interface IncomeReceipt {
   subtotal: number;
   igv: number;
   total: number;
+  effectiveAmount?: number;
   status: "Vigente" | "Anulado" | "Corregido";
   createdBy: string;
   createdAt: string;
@@ -29,7 +30,7 @@ export interface CreateIncomePayload {
   patientId: string;
   totalAmount: number;
   payment: string;
-  paidAt: string;
+  paidAt?: string;
   clientName: string;
   clientDocument: string;
   clientPhone: string;
@@ -51,6 +52,7 @@ export interface ReviewChangeRequestPayload {
   reviewComment?: string;
   replacement?: {
     totalAmount: number;
+    paidAt?: string;
     paymentMethod: string;
     allocations: CreateIncomeAllocation[];
     clientName?: string;

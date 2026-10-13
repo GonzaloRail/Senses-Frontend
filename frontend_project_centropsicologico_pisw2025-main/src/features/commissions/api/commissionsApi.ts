@@ -1,4 +1,5 @@
 import api from "@/api/api";
+import { dayAfterLimaIso, startOfLimaDayIso } from "@/shared/utils/limaDates";
 import type {
   CommissionByPsychologist,
   CommissionReportData,
@@ -74,8 +75,12 @@ interface CommissionReportApiRow {
   };
   paidAppointmentsCount: number;
   grossIncome: string;
-  commissionAmount: string;
-  clinicNetAmount: string;
+  commissionAmount: string | null;
+  clinicNetAmount: string | null;
+  calculationStatus?: "CALCULATED" | "MISSING_COMMISSION_RATE";
+  knownCommissionAmount?: string;
+  knownClinicNetAmount?: string;
+  unresolvedGrossIncome?: string;
   rateBreakdown: Array<{
     percentage: string;
     validFrom: string;
@@ -95,10 +100,23 @@ interface MissingCommissionRateApiRow {
 
 interface CommissionReportApiResponse {
   data: Array<CommissionReportApiRow | MissingCommissionRateApiRow>;
+  warnings?: Array<{
+    psychologistId: string;
+    code: "MISSING_COMMISSION_RATE";
+    message: string;
+    appointmentId: string;
+    allocationId: string;
+    receiptLabel: string;
+    paidAt: string;
+  }>;
   summary: {
     grossIncome: string;
-    commissionAmount: string;
-    clinicNetAmount: string;
+    commissionAmount: string | null;
+    clinicNetAmount: string | null;
+    calculationStatus?: "CALCULATED" | "MISSING_COMMISSION_RATE";
+    knownCommissionAmount?: string;
+    knownClinicNetAmount?: string;
+    unresolvedGrossIncome?: string;
     paidAppointmentsCount: number;
   };
   meta: PaginatedResponse<never>["meta"];
@@ -109,17 +127,6 @@ export interface GetCommissionReportParams {
   dateTo: string;
   psychologistId?: string;
 }
-
-const startOfLimaDayIso = (date: string) =>
-  new Date(`${date}T00:00:00-05:00`).toISOString();
-
-const dayAfterLimaIso = (date: string) => {
-  const [year, month, day] = date.split("-").map(Number);
-  const utcDate = new Date(Date.UTC(year, month - 1, day));
-  utcDate.setUTCDate(utcDate.getUTCDate() + 1);
-  const nextDate = utcDate.toISOString().slice(0, 10);
-  return startOfLimaDayIso(nextDate);
-};
 
 const isMissingRate = (
   row: CommissionReportApiRow | MissingCommissionRateApiRow
@@ -133,16 +140,20 @@ const normalizeReportRow = (
   row: CommissionReportApiRow
 ): CommissionByPsychologist => {
   const grossIncome = Number(row.grossIncome);
-  const commission = Number(row.commissionAmount);
+  const commission = row.commissionAmount === null ? null : Number(row.commissionAmount);
 
   return {
     psychologistId: row.psychologist.id,
     psychologist: `${row.psychologist.firstName} ${row.psychologist.lastName}`.trim(),
     commissionRate:
-      grossIncome > 0 ? (commission / grossIncome) * 100 : 0,
+      commission === null ? null : grossIncome > 0 ? (commission / grossIncome) * 100 : 0,
     grossIncome,
     commission,
-    clinicNet: Number(row.clinicNetAmount),
+    clinicNet: row.clinicNetAmount === null ? null : Number(row.clinicNetAmount),
+    calculationStatus: row.calculationStatus ?? (commission === null ? "MISSING_COMMISSION_RATE" : "CALCULATED"),
+    knownCommissionAmount: Number(row.knownCommissionAmount ?? row.commissionAmount ?? 0),
+    knownClinicNetAmount: Number(row.knownClinicNetAmount ?? row.clinicNetAmount ?? 0),
+    unresolvedGrossIncome: Number(row.unresolvedGrossIncome ?? 0),
     receiptsCount: row.paidAppointmentsCount,
     rateBreakdown: row.rateBreakdown.map((rate) => ({
       percentage: Number(rate.percentage),
@@ -158,8 +169,12 @@ const normalizeSummary = (
   summary: CommissionReportApiResponse["summary"]
 ): CommissionReportSummary => ({
   grossIncome: Number(summary.grossIncome),
-  commissionAmount: Number(summary.commissionAmount),
-  clinicNetAmount: Number(summary.clinicNetAmount),
+  commissionAmount: summary.commissionAmount === null ? null : Number(summary.commissionAmount),
+  clinicNetAmount: summary.clinicNetAmount === null ? null : Number(summary.clinicNetAmount),
+  calculationStatus: summary.calculationStatus ?? (summary.commissionAmount === null ? "MISSING_COMMISSION_RATE" : "CALCULATED"),
+  knownCommissionAmount: Number(summary.knownCommissionAmount ?? summary.commissionAmount ?? 0),
+  knownClinicNetAmount: Number(summary.knownClinicNetAmount ?? summary.clinicNetAmount ?? 0),
+  unresolvedGrossIncome: Number(summary.unresolvedGrossIncome ?? 0),
   paidAppointmentsCount: summary.paidAppointmentsCount,
 });
 
@@ -196,21 +211,93 @@ export const getCommissionReportApi = async ({
     ...remainingPages.flatMap((page) => page.data),
   ];
 
-  return {
-    rows: allRows.filter(hasCommissionReport).map(normalizeReportRow),
-    warnings: allRows.filter(isMissingRate).map((warning) => ({
+  const reportRows = allRows.filter(hasCommissionReport);
+  const names = new Map(reportRows.map((row) => [row.psychologist.id, row.psychologist]));
+  // Global warnings repeat on each page; consume the first page only.
+  const warnings = firstPage.warnings?.map((warning) => ({
+    ...warning,
+    firstName: names.get(warning.psychologistId)?.firstName ?? "",
+    lastName: names.get(warning.psychologistId)?.lastName ?? "",
+  })) ?? allRows.filter(isMissingRate).map((warning) => ({
       psychologistId: warning.psychologistId,
       firstName: warning.firstName,
       lastName: warning.lastName,
       code: warning.code,
       message: warning.message,
-    })),
+    }));
+  return {
+    rows: reportRows.map(normalizeReportRow),
+    warnings,
     summary: normalizeSummary(firstPage.summary),
   };
 };
 
 export const getCommissionsApi = async (params: GetCommissionsParams): Promise<PaginatedResponse<PsychologistCommission>> => {
   const { data } = await api.get("/api/v1/accounting/commissions", { params });
+  return data;
+};
+
+type CalculationStatus = "CALCULATED" | "MISSING_COMMISSION_RATE";
+
+interface CommissionDetailAmounts {
+  collectedAmount: string;
+  refundedAmount: string;
+  grossIncome: string;
+  commissionAmount: string | null;
+  clinicNetAmount: string | null;
+  calculationStatus: CalculationStatus;
+}
+
+export interface CommissionPaymentDetail extends CommissionDetailAmounts {
+  allocationId: string;
+  incomeId: string;
+  receiptLabel: string;
+  paidAt: string;
+  rateId: string | null;
+  percentage: string | null;
+  rateValidFrom: string | null;
+  rateValidTo: string | null;
+}
+
+export interface AppointmentCommissionDetail extends CommissionDetailAmounts {
+  appointmentId: string;
+  appointmentDate: string;
+  serviceName: string | null;
+  payments: CommissionPaymentDetail[];
+}
+
+export interface CommissionDetailsResponse {
+  psychologist: Psychologist;
+  period: { from: string; to: string; timeZone: string; currency: string };
+  data: AppointmentCommissionDetail[];
+  summary: CommissionDetailAmounts & { paidAppointmentsCount: number };
+  warnings: Array<{
+    code: string;
+    appointmentId: string;
+    allocationId: string;
+    paidAt: string;
+    message: string;
+  }>;
+  meta: PaginatedResponse<never>["meta"];
+}
+
+export const getCommissionDetailsApi = async (
+  params: GetCommissionReportParams & { psychologistId: string; page: number },
+  signal?: AbortSignal
+): Promise<CommissionDetailsResponse> => {
+  const { data } = await api.get<CommissionDetailsResponse>(
+    "/api/v1/accounting/commissions/report/details",
+    {
+      params: {
+        psychologistId: params.psychologistId,
+        from: startOfLimaDayIso(params.dateFrom),
+        to: dayAfterLimaIso(params.dateTo),
+        page: params.page,
+        take: 10,
+      },
+      signal,
+    }
+  );
   return data;
 };
 

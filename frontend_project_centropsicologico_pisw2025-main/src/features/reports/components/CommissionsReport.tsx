@@ -1,12 +1,9 @@
 import type { CommissionReportData } from "@/shared/interfaces/models/Financial";
 import { AlertTriangle } from "lucide-react";
+import { commissionMoney as money } from "@/features/commissions/utils/commissionReport";
 
 interface Props {
   data: CommissionReportData;
-}
-
-function money(n: number) {
-  return `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export const CommissionsReport = ({ data }: Props) => {
@@ -29,9 +26,12 @@ export const CommissionsReport = ({ data }: Props) => {
       {data.warnings.length > 0 && (
         <div className="m-4 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
           <div className="flex items-center gap-2 font-semibold"><AlertTriangle className="h-4 w-4" /> Porcentajes pendientes de configuración</div>
+          <p className="text-sm">El bruto incluye todos los cobros. Comisión y margen definitivos están pendientes. Comisión calculada: {money(data.summary.knownCommissionAmount)}; margen calculado: {money(data.summary.knownClinicNetAmount)}; bruto sin tasa: {money(data.summary.unresolvedGrossIncome)}.</p>
           {data.warnings.map((warning) => (
-            <p key={warning.psychologistId} className="text-sm">
+            <p key={warning.allocationId ?? warning.psychologistId} className="text-sm">
               {`${warning.firstName} ${warning.lastName}`.trim()}: {warning.message}
+              {warning.receiptLabel && ` · ${warning.receiptLabel}`}
+              {warning.paidAt && ` · Cobro: ${new Date(warning.paidAt).toLocaleString("es-PE", { timeZone: "America/Lima" })}`}
             </p>
           ))}
         </div>
@@ -51,7 +51,7 @@ export const CommissionsReport = ({ data }: Props) => {
         </thead>
         <tbody>
           {data.rows.length === 0 ? (
-            <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No hay citas cobradas en el periodo seleccionado.</td></tr>
+            <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">{data.warnings.length > 0 ? "Hay cobros pendientes de tasa; no hay filas con cálculo completo." : "No hay citas cobradas en el periodo seleccionado."}</td></tr>
           ) : (
             data.rows.map((c) => (
               <tr key={c.psychologistId} className="border-t hover:bg-muted/30">
@@ -59,8 +59,8 @@ export const CommissionsReport = ({ data }: Props) => {
                 <td className="p-3 text-center">{c.receiptsCount}</td>
                 <td className="p-3 text-right">{rateLabel(c.rateBreakdown)}</td>
                 <td className="p-3 text-right">{money(c.grossIncome)}</td>
-                <td className="p-3 text-right font-bold text-blue-600">{money(c.commission)}</td>
-                <td className="p-3 text-right font-bold text-emerald-600">{money(c.clinicNet)}</td>
+                <td className="p-3 text-right font-bold text-blue-600">{money(c.commission)}{c.commission === null && <p className="text-xs font-normal">Calculado: {money(c.knownCommissionAmount)}</p>}</td>
+                <td className="p-3 text-right font-bold text-emerald-600">{money(c.clinicNet)}{c.clinicNet === null && <p className="text-xs font-normal">Calculado: {money(c.knownClinicNetAmount)} · Bruto sin tasa: {money(c.unresolvedGrossIncome)}</p>}</td>
               </tr>
             ))
           )}

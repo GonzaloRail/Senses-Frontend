@@ -1,8 +1,10 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { MockReceipt, MockExpense, CommissionReportData, CashFlowData } from "@/shared/interfaces/models/Financial";
+import { getEffectiveIncomeAmount } from "@/features/ingresos/utils/incomeCalculations";
 
-function money(n: number) {
+function money(n: number | null) {
+  if (n === null) return "Pendiente";
   return `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
@@ -30,7 +32,7 @@ export function exportToPdf(
 
     autoTable(document, {
       startY: 29,
-      head: [["Psicólogo", "Citas", "% aplicado", "Ingreso bruto", "Comisión", "Margen neto"]],
+      head: [["Psicólogo", "Citas", "% aplicado", "Ingreso bruto", "Comisión", "Margen neto", "Comisión calculada", "Margen calculado", "Bruto sin tasa"]],
       body: report.rows.map((row) => [
         row.psychologist,
         String(row.receiptsCount),
@@ -38,6 +40,9 @@ export function exportToPdf(
         money(row.grossIncome),
         money(row.commission),
         money(row.clinicNet),
+        money(row.knownCommissionAmount),
+        money(row.knownClinicNetAmount),
+        money(row.unresolvedGrossIncome),
       ]),
       foot: [[
         "Totales",
@@ -46,9 +51,12 @@ export function exportToPdf(
         money(report.summary.grossIncome),
         money(report.summary.commissionAmount),
         money(report.summary.clinicNetAmount),
+        money(report.summary.knownCommissionAmount),
+        money(report.summary.knownClinicNetAmount),
+        money(report.summary.unresolvedGrossIncome),
       ]],
       theme: "grid",
-      styles: { fontSize: 9 },
+      styles: { fontSize: 8 },
       headStyles: { fillColor: [11, 32, 53] },
       footStyles: { fillColor: [226, 232, 240], textColor: [15, 23, 42], fontStyle: "bold" },
     });
@@ -58,13 +66,22 @@ export function exportToPdf(
       document.setFontSize(10);
       document.setTextColor(146, 64, 14);
       document.text("Advertencias", 14, finalY + 9);
-      report.warnings.forEach((warning, index) => {
-        document.text(
-          `• ${warning.firstName} ${warning.lastName}: ${warning.message}`,
-          14,
-          finalY + 15 + index * 5
-        );
-      });
+      let y = finalY + 15;
+      const notes = [
+        "Pendiente: faltan tasas. Los importes calculados son subtotales conocidos, no totales definitivos.",
+        ...report.warnings.map((warning) =>
+          `${warning.firstName} ${warning.lastName}: ${warning.message}${warning.receiptLabel ? " · " + warning.receiptLabel : ""}${warning.paidAt ? " · Cobro: " + new Date(warning.paidAt).toLocaleString("es-PE", { timeZone: "America/Lima" }) : ""}`
+        ),
+      ];
+      for (const note of notes) {
+        const lines = document.splitTextToSize(note, 265) as string[];
+        for (const line of lines) {
+          if (y > 195) { document.addPage(); y = 15; }
+          document.text(line, 14, y);
+          y += 5;
+        }
+        y += 2;
+      }
     }
 
     document.save(`reporte-comisiones-${dateFrom}-${dateTo}.pdf`);
@@ -116,12 +133,12 @@ export function exportToPdf(
       const recs = d as MockReceipt[];
       bodyHtml = `
         <table>
-          <thead><tr><th>Fecha</th><th>Paciente</th><th>Servicio</th><th>Psicólogo</th><th>Pago</th><th class="r">Total</th><th>Estado</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Paciente</th><th>Servicio</th><th>Psicólogo</th><th>Pago</th><th class="r">Importe original</th><th class="r">Ingreso efectivo</th><th>Estado</th></tr></thead>
           <tbody>
-            ${recs.map(r => `<tr><td>${dateDisplay(r.date)}</td><td>${r.patient}</td><td>${r.service}</td><td>${r.psychologist}</td><td>${r.payment}</td><td class="r">${money(r.total)}</td><td>${r.status}</td></tr>`).join("")}
+            ${recs.map(r => `<tr><td>${dateDisplay(r.date)}</td><td>${r.patient}</td><td>${r.service}</td><td>${r.psychologist}</td><td>${r.payment}</td><td class="r">${money(r.total)}</td><td class="r">${money(getEffectiveIncomeAmount(r))}</td><td>${r.status}</td></tr>`).join("")}
           </tbody>
         </table>
-        <div class="summary">Total: <b>${money(recs.filter(r => r.status !== "Anulado").reduce((s, r) => s + r.total, 0))}</b></div>`;
+        <div class="summary">Total efectivo: <b>${money(recs.reduce((s, r) => s + getEffectiveIncomeAmount(r), 0))}</b></div>`;
     }
   }
 

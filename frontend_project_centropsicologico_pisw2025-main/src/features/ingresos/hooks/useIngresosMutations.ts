@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ingresosApi } from "../api/ingresosApi";
-import { INGRESOS_QUERY_KEY } from "./useIngresosQueries";
+import { invalidateFinancialQueries } from "@/shared/utils/invalidateFinancialQueries";
 import type {
   CreateIncomePayload,
   CreateChangeRequestPayload,
@@ -12,9 +12,7 @@ export const useCreateIngreso = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateIncomePayload) => ingresosApi.create(input),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INGRESOS_QUERY_KEY });
-    },
+    onSuccess: () => invalidateFinancialQueries(queryClient),
   });
 };
 
@@ -23,10 +21,7 @@ export const useCreateChangeRequest = () => {
   return useMutation({
     mutationFn: ({ incomeId, payload }: { incomeId: string; payload: CreateChangeRequestPayload }) =>
       ingresosApi.createChangeRequest(incomeId, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INGRESOS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ["change-requests"] });
-    },
+    onSuccess: () => invalidateFinancialQueries(queryClient),
   });
 };
 
@@ -35,10 +30,7 @@ export const useReviewChangeRequest = () => {
   return useMutation({
     mutationFn: ({ requestId, payload }: { requestId: string; payload: ReviewChangeRequestPayload }) =>
       ingresosApi.reviewChangeRequest(requestId, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INGRESOS_QUERY_KEY });
-      queryClient.invalidateQueries({ queryKey: ["change-requests"] });
-    },
+    onSuccess: () => invalidateFinancialQueries(queryClient),
   });
 };
 
@@ -47,8 +39,6 @@ export const useConfigureBilling = () => {
   return useMutation({
     mutationFn: ({ appointmentId, payload }: { appointmentId: string; payload: ConfigureBillingPayload }) =>
       ingresosApi.configureAppointmentBilling(appointmentId, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["appointments"] });
-    },
+    onSuccess: () => invalidateFinancialQueries(queryClient),
   });
 };

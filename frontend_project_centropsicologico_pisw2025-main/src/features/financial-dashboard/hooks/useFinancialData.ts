@@ -13,5 +13,6 @@ export function useFinancialData(
     queryKey: ["financialDashboard", dateMode, selectedDate.toISOString(), paymentFilter, customFrom, customTo],
     queryFn: () => fetchDashboardData({ dateMode, selectedDate, paymentFilter, customFrom, customTo }),
     staleTime: 30 * 1000,
+    refetchOnWindowFocus: "always",
   });
 }
