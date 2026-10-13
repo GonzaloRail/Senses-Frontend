@@ -30,7 +30,7 @@ export const ChangeRequestModal = ({ incomeId, type, open, onClose }: Props) => 
   const mutation = useCreateChangeRequest();
 
   const handleSubmit = async () => {
-    if (!incomeId || !type || !reason.trim()) return;
+    if (!incomeId || !type || reason.trim().length < 5) return;
 
     const payload: any = { type, reason: reason.trim() };
     if (type === "REFUND") {
@@ -46,9 +46,8 @@ export const ChangeRequestModal = ({ incomeId, type, open, onClose }: Props) => 
       setReason("");
       setAllocationId("");
       setAmount("");
-    } catch (error: any) {
-      const msg = error?.response?.data?.message || error?.message || "Error al crear la solicitud";
-      toast.error(msg);
+    } catch {
+      // El aviso de error lo muestra el mutationCache global (un solo toast).
     }
   };
 
@@ -73,6 +72,7 @@ export const ChangeRequestModal = ({ incomeId, type, open, onClose }: Props) => 
               onChange={(e) => setReason(e.target.value)}
               rows={3}
             />
+            <p className="text-xs text-muted-foreground">Mínimo 5 caracteres.</p>
           </div>
 
           {type === "REFUND" && (
@@ -104,7 +104,7 @@ export const ChangeRequestModal = ({ incomeId, type, open, onClose }: Props) => 
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
           <Button
             onClick={handleSubmit}
-            disabled={mutation.isPending || !reason.trim() || (type === "REFUND" && (!allocationId.trim() || !amount))}
+            disabled={mutation.isPending || reason.trim().length < 5 || (type === "REFUND" && (!allocationId.trim() || !amount))}
           >
             {mutation.isPending ? "Enviando..." : "Enviar solicitud"}
           </Button>

@@ -148,7 +148,7 @@ export const IngresosList = () => {
                   <ChangeRequestsTable
                     requests={changeRequestsData?.items ?? []}
                     loading={loadingCR}
-                     canReview={isCashier}
+                     canReview={isAdmin}
                     onRefresh={refetchCR}
                   />
                 ) : (
@@ -190,7 +190,6 @@ export const IngresosList = () => {
         receipt={selectedReceipt}
         open={!!selectedId}
         onClose={() => setSelectedId(null)}
-        onShowReceipt={setPreviewReceipt}
       />
 
       <ReceiptPreviewModal
