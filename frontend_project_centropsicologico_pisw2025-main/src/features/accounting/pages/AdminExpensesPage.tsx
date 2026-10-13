@@ -142,7 +142,7 @@ export const AdminExpensesPage = () => {
   // Cálculo de estadísticas
   const stats = useMemo(() => {
     return {
-      totalGastado: expenses.filter(e => e.status === "APPROVED").reduce((acc, curr) => acc + curr.amount, 0),
+      totalGastado: expenses.filter(e => e.status === "APPROVED").reduce((acc, curr) => acc + Number(curr.amount), 0),
       pendientes: expenses.filter(e => e.status === "PENDING").length,
       rechazados: expenses.filter(e => e.status === "REJECTED").length
     };

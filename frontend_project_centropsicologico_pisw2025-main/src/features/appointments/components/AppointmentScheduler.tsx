@@ -39,7 +39,7 @@ import { Loading } from "@/shared/components/Loading";
 import { PatientSearchSelect } from "./PatientSearchSelect";
 import { usePatientSearchQuery } from "@/features/patients/hooks";
 import { usePsychologistSearchByNameQuery } from "@/features/systemUsers/hooks";
-import { getUserByIdApi } from "@/features/systemUsers/api/systemUsersApi";
+import { getPsychologistSchedulingApi } from "@/features/systemUsers/api/systemUsersApi";
 import { getAppointmentEventsByPsychologistApi } from "@/features/schedules/api/schedulesApi";
 import { getAppointmentByIdApi } from "../api/appointmentsApi";
 import { useCreateAppointment, useUpdateAppointment, useUpdateAppointmentStatus } from "../hooks/useAppointmentMutations";
@@ -442,7 +442,7 @@ export const AppointmentScheduler = ({
   );
   const { showAlert } = useAlert();
   const patientSearch = usePatientSearchQuery();
-  const psychologistSearch = usePsychologistSearchByNameQuery();
+  const psychologistSearch = usePsychologistSearchByNameQuery(!hidePsychologistSelector);
   const createAppointmentMutation = useCreateAppointment();
   const updateAppointmentMutation = useUpdateAppointment();
   const updateAppointmentStatus = useUpdateAppointmentStatus();
@@ -460,7 +460,7 @@ export const AppointmentScheduler = ({
 
   const { data: selectedPsychologist, isLoading: psychologistLoading } = useQuery<User>({
     queryKey: ["appointment-scheduler", "psychologist", selectedPsychologistId],
-    queryFn: () => getUserByIdApi({ id: selectedPsychologistId }),
+    queryFn: () => getPsychologistSchedulingApi({ id: selectedPsychologistId }),
     enabled: Boolean(selectedPsychologistId),
     staleTime: 1000 * 60 * 5,
   });
@@ -483,14 +483,7 @@ export const AppointmentScheduler = ({
     staleTime: 1000 * 60,
   });
 
-  const selectedPsychologistFromSearch = useMemo(
-    () => psychologistSearch.psychologists.find((psychologist) => psychologist.id === selectedPsychologistId),
-    [psychologistSearch.psychologists, selectedPsychologistId]
-  );
-
-  const selectedPsychologistWithSchedule = selectedPsychologist?.workSchedule?.length
-    ? selectedPsychologist
-    : selectedPsychologistFromSearch;
+  const selectedPsychologistWithSchedule = selectedPsychologist;
 
   const workSchedules = useMemo(
     () => normalizeWorkSchedule(selectedPsychologistWithSchedule?.workSchedule),

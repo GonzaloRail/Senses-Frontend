@@ -9,7 +9,7 @@ import type { ChangeRequest } from "@/shared/interfaces/models/IncomeReceipt";
 interface Props {
   requests: ChangeRequest[];
   loading?: boolean;
-  isAdmin?: boolean;
+  canReview?: boolean;
   onRefresh?: () => void;
 }
 
@@ -22,7 +22,7 @@ const statusBadge = (status: string) => {
   return <Badge className={colors[status] || ""} variant="outline">{CHANGE_STATUS_LABELS[status] || status}</Badge>;
 };
 
-export const ChangeRequestsTable = ({ requests, loading, isAdmin, onRefresh }: Props) => {
+export const ChangeRequestsTable = ({ requests, loading, canReview, onRefresh }: Props) => {
   const [reviewTarget, setReviewTarget] = useState<ChangeRequest | null>(null);
   const [page, setPage] = useState(0);
   const pageSize = 15;
@@ -50,7 +50,7 @@ export const ChangeRequestsTable = ({ requests, loading, isAdmin, onRefresh }: P
               <TableHead>Motivo</TableHead>
               <TableHead>Fecha</TableHead>
               <TableHead>Estado</TableHead>
-              {isAdmin && <TableHead></TableHead>}
+              {canReview && <TableHead></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -64,7 +64,7 @@ export const ChangeRequestsTable = ({ requests, loading, isAdmin, onRefresh }: P
                 <TableCell className="max-w-xs truncate">{r.reason}</TableCell>
                 <TableCell>{dateDisplay(r.createdAt)}</TableCell>
                 <TableCell>{statusBadge(r.status)}</TableCell>
-                {isAdmin && (
+                {canReview && (
                   <TableCell>
                     {r.status === "PENDING" && (
                       <Button variant="outline" size="sm" onClick={() => setReviewTarget(r)}>

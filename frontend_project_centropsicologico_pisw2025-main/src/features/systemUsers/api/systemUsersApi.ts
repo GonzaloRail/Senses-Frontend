@@ -10,6 +10,11 @@ export const getUserByIdApi = async ({ id }: UserByIdQuery) => {
   return response.data;
 };
 
+export const getPsychologistSchedulingApi = async ({ id }: UserByIdQuery) => {
+  const response = await api.get(`/api/v1/users/psychologist/${id}/scheduling`);
+  return response.data;
+};
+
 export interface UsersPaginatedQuery {
   page: number;
   take: number;

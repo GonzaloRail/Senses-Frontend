@@ -18,6 +18,7 @@ interface Props {
   receipts: IncomeReceipt[];
   onView: (id: string) => void;
   onShowReceipt: (receipt: IncomeReceipt | null) => void;
+  canRequestChanges: boolean;
 }
 
 const statusBadge = (status: IncomeReceipt["status"]) => {
@@ -29,7 +30,7 @@ const statusBadge = (status: IncomeReceipt["status"]) => {
   return <Badge className={colors[status] || ""} variant="outline">{status}</Badge>;
 };
 
-export const IngresosTable = ({ receipts, onView, onShowReceipt }: Props) => {
+export const IngresosTable = ({ receipts, onView, onShowReceipt, canRequestChanges }: Props) => {
   const [changeRequestTarget, setChangeRequestTarget] = useState<{ id: string; type: "CANCELLATION" | "CORRECTION" } | null>(null);
   const [editTarget, setEditTarget] = useState<IncomeReceipt | null>(null);
   const [page, setPage] = useState(0);
@@ -98,12 +99,12 @@ export const IngresosTable = ({ receipts, onView, onShowReceipt }: Props) => {
                     <Button variant="outline" size="sm" onClick={() => onShowReceipt(r)}>
                       Boleta
                     </Button>
-                    {r.status === "Vigente" && (
+                    {canRequestChanges && r.status === "Vigente" && (
                       <Button variant="outline" size="sm" onClick={() => setEditTarget(r)}>
                         Editar
                       </Button>
                     )}
-                    {r.status === "Vigente" && (
+                    {canRequestChanges && r.status === "Vigente" && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="destructive" size="sm">Acciones</Button>

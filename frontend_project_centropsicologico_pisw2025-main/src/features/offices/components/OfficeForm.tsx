@@ -16,6 +16,7 @@ import { useCreateOffice, useUpdateOffice } from "../hooks/useOfficesMutations";
 import { useLocationSearchQuery } from "@/features/locations/hooks";
 import { SearchableSelect } from "@/shared/components/SearchableSelect";
 import { AssignItemsModal } from "./AssignItemsModal";
+import { useAuth } from "@/store/auth/auth.store";
 
 export type FormMode = "view" | "edit" | "create";
 
@@ -28,6 +29,7 @@ type OfficeFormProps = {
 
 export const OfficeForm = ({ data }: OfficeFormProps) => {
   const navigate = useNavigate();
+  const canAssignInventory = useAuth((state) => state.roleSelected) === "CASHIER";
 
   const methods = useForm<OfficeFormSchema>({
     resolver: zodResolver(officeFormSchema),
@@ -285,14 +287,14 @@ export const OfficeForm = ({ data }: OfficeFormProps) => {
                       {data?.isActive ? "Deshabilitar" : "Habilitar"}
                     </Button>
 
-                    <Button
+                    {canAssignInventory && <Button
                       onClick={() => setOpen(true)}
                       className="flex items-center gap-2"
                       disabled={loading}
                       type="button"
                     >
                       Asignar inventario
-                    </Button>
+                    </Button>}
 
                     <Button
                       onClick={handleEdit}

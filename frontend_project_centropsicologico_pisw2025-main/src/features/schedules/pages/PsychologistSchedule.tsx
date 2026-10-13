@@ -6,7 +6,7 @@ import { useBigCalendar } from "../hooks/useBigCalendar"
 import { getAppointmentEventsByPsychologistApi } from "../api/schedulesApi"
 import { queryClient } from "@/lib/queryClient"
 import type { AppointmentEvent, AppointmentEventResource } from "@/shared/interfaces/apiResponses/getAllAppointmentEvents"
-import { getUserByIdApi } from "@/features/systemUsers/api/systemUsersApi"
+import { getPsychologistSchedulingApi } from "@/features/systemUsers/api/systemUsersApi"
 import type { User } from "@/shared/interfaces/models"
 import { Loading } from "@/shared/components/Loading"
 
@@ -54,7 +54,7 @@ export const PsychologistSchedule = () => {
       if (!id) return;
       const response = await queryClient.fetchQuery<User>({
         queryKey: ["appointmentpsychologistinfo", id],
-        queryFn: () => getUserByIdApi({ id }),
+        queryFn: () => getPsychologistSchedulingApi({ id }),
       });
 
       setPsychologistName(`${response.firstName} ${response.lastName}`);
