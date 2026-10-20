@@ -10,10 +10,11 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router"
 import { getAllOfficeApi, getAllPsychologistApi } from "../api/schedulesApi"
 import type { OfficeScheduleListPaginatedResponse, PsychologistScheduleListPaginatedResponse } from "@/shared/interfaces/apiResponses/getAllScheduleListsPaginated"
+import { GeneralScheduleDemo } from "../components/GeneralScheduleDemo"
 
 type FetchFn<T = any> = ({ pageIndex, pageSize }: { pageIndex?: number; pageSize?: number }) => Promise<{ data: T[]; pageCount: number }>
 
-export const SchedulesList = () => {
+const IndividualSchedulesList = () => {
   const { buttons, registerButton, selectButton, isSelected } = useButtonGroup({
     defaultSelected: "psychologistBtn",
   })
@@ -198,7 +199,6 @@ export const SchedulesList = () => {
 
   return (
     <>
-      <SiteHeader title="Horarios" />
       <div className="flex flex-1 flex-col">
         <div className="flex flex-row gap-2 mx-5 mt-5 mb-0">
           {buttons.map(btn => (
@@ -242,3 +242,17 @@ export const SchedulesList = () => {
     </>
   )
 }
+
+export const SchedulesList = () => {
+  const [view, setView] = useState<"general" | "individual">("general");
+  return (
+    <>
+      <SiteHeader title="Horarios" />
+      <div className="flex flex-wrap gap-2 border-b px-4 py-3 md:px-6" role="group" aria-label="Tipo de vista de horarios">
+        <Button variant={view === "general" ? "default" : "outline"} aria-pressed={view === "general"} onClick={() => setView("general")}>Vista general por sede · Demo</Button>
+        <Button variant={view === "individual" ? "default" : "outline"} aria-pressed={view === "individual"} onClick={() => setView("individual")}>Agendas individuales</Button>
+      </div>
+      {view === "general" ? <GeneralScheduleDemo /> : <IndividualSchedulesList />}
+    </>
+  );
+};
