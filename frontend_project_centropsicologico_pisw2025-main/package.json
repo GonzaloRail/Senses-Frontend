@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "test:hu20": "node --test scripts/hu20-regressions.test.mjs",
+    "test:hu24": "node --test scripts/hu24-suggestions.test.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

@@ -3,7 +3,7 @@ import { FaUser, FaCalendarAlt, FaMoneyBillWave, FaChartPie, FaFileAlt, FaPercen
 import { GiHealthNormal } from "react-icons/gi";
 import { PiOfficeChairBold } from "react-icons/pi";
 import { IoIosDocument } from "react-icons/io";
-import { MdInventory, MdAnnouncement, MdNotificationsActive } from "react-icons/md";
+import { MdInventory, MdAnnouncement, MdNotificationsActive, MdMailOutline } from "react-icons/md";
 import { FaUserCog } from "react-icons/fa";
 import { TbReceipt } from "react-icons/tb";
 
@@ -11,6 +11,7 @@ export const getNavMainItemsByRole = (role: string) => {
   switch (role) {
     case "ADMIN":
       return [
+        { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions/received" },
         {
           title: "Analíticas",
           icon: TbLayoutDashboardFilled,
@@ -105,6 +106,7 @@ export const getNavMainItemsByRole = (role: string) => {
       ];
     case "ADMISSION":
       return [
+        { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions" },
         {
           title: "Gestión de citas",
           icon: GiHealthNormal,
@@ -133,6 +135,7 @@ export const getNavMainItemsByRole = (role: string) => {
       ];
     case "CASHIER":
       return [
+        { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions" },
         {
           title: "Registro de ingresos",
           icon: TbReceipt,
@@ -179,6 +182,7 @@ export const getNavMainItemsByRole = (role: string) => {
       ];
     case "PSYCHOLOGIST":
       return [
+        { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions" },
         {
           title: "Mis pacientes",
           icon: FaUser,
