@@ -61,7 +61,7 @@ import { CommissionsPage } from "@/features/commissions";
 import { AuditPage } from "@/features/audit/pages/AuditPage";
 import { AppointmentNotificationsPage } from "@/features/appointment-notifications/pages/AppointmentNotificationsPage";
 import { AppointmentConfirmationPage } from "@/features/appointment-notifications/pages/AppointmentConfirmationPage";
-import { SuggestionsPage, SuggestionsInboxPage } from "@/features/suggestions/pages/SuggestionsPage";
+import { SuggestionsPage, SuggestionsInboxPage, SuggestionDetailPage, SuggestionReportPage, PublicSuggestionPage } from "@/features/suggestions/pages/SuggestionsPage";
 
 // import { CreateLocation } from "@/features/locations/pages/CreateLocation";
 
@@ -71,6 +71,9 @@ export const AppRouter = () => {
   const isAuthBootstrapped = useAuth((state) => state.isAuthBootstrapped);
   const { Spinner } = useSpinner({ initialLoading: true });
   useBootstrapAuth();
+  if (window.location.pathname.replace(/\/+$/, "") === "/buzon") {
+    return <PublicSuggestionPage />;
+  }
   if (!isAuthBootstrapped) {
     return <Spinner />;
   }
@@ -134,9 +137,15 @@ export const AppRouter = () => {
                 }
               />
 
+              {/* Rutas exclusivas de Recursos Humanos */}
+              <Route element={<ProtectedRoute allowedRoles={["HR"]} />}>
+                <Route path="suggestions" element={<SuggestionsInboxPage />} />
+                <Route path="suggestions/:id" element={<SuggestionDetailPage />} />
+                <Route path="suggestions/report" element={<SuggestionReportPage />} />
+              </Route>
+
               {/* Rutas exclusivas de Gerencia */}
               <Route element={<ProtectedRoute allowedRoles={["ADMIN"]} />}>
-                <Route path="suggestions/received" element={<SuggestionsInboxPage />} />
                 <Route path="dashboard/" element={<Dashboard />} />
                 <Route path="audit-logs/" element={<AuditPage />} />
 
@@ -172,8 +181,8 @@ export const AppRouter = () => {
                 <Route path="financial-dashboard/" element={<FinancialDashboard />} />
               </Route>
 
-              <Route element={<ProtectedRoute allowedRoles={["ADMIN", "PSYCHOLOGIST", "ADMISSION", "CASHIER"]} />}>
-                <Route path="suggestions" element={<SuggestionsPage />} />
+              <Route element={<ProtectedRoute allowedRoles={["PSYCHOLOGIST", "INTERNAL", "ADMISSION", "CASHIER"]} />}>
+                <Route path="suggestions/new" element={<SuggestionsPage />} />
               </Route>
 
               {/* Rutas para admisión y gerencia */}

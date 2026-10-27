@@ -11,7 +11,6 @@ export const getNavMainItemsByRole = (role: string) => {
   switch (role) {
     case "ADMIN":
       return [
-        { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions/received" },
         {
           title: "Analíticas",
           icon: TbLayoutDashboardFilled,
@@ -106,7 +105,7 @@ export const getNavMainItemsByRole = (role: string) => {
       ];
     case "ADMISSION":
       return [
-        { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions" },
+        { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions/new" },
         {
           title: "Gestión de citas",
           icon: GiHealthNormal,
@@ -135,7 +134,7 @@ export const getNavMainItemsByRole = (role: string) => {
       ];
     case "CASHIER":
       return [
-        { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions" },
+        { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions/new" },
         {
           title: "Registro de ingresos",
           icon: TbReceipt,
@@ -159,6 +158,7 @@ export const getNavMainItemsByRole = (role: string) => {
       ];
     case "HR":
       return [
+        { title: "Gestión del buzón", icon: MdMailOutline, url: "/suggestions" },
         {
           title: "Gestión de usuarios del sistema",
           icon: FaUser,
@@ -182,7 +182,7 @@ export const getNavMainItemsByRole = (role: string) => {
       ];
     case "PSYCHOLOGIST":
       return [
-        { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions" },
+        { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions/new" },
         {
           title: "Mis pacientes",
           icon: FaUser,
@@ -198,6 +198,13 @@ export const getNavMainItemsByRole = (role: string) => {
           icon: GiHealthNormal,
           url: "/my-appointments",
         },
+      ];
+    case "INTERNAL":
+      return [
+        { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions/new" },
+        { title: "Mis pacientes", icon: FaUser, url: "/my-patients" },
+        { title: "Mi horario", icon: FaCalendarAlt, url: "/my-schedule" },
+        { title: "Citas", icon: GiHealthNormal, url: "/my-appointments" },
       ];
     case "AUDITOR":
       return [
