@@ -1,6 +1,8 @@
 import { z } from "zod";
 
-export const userFormSchema = z
+export const createUserFormSchema = (
+  { requireDocuments = true }: { requireDocuments?: boolean } = {}
+) => z
   .object({
     firstName: z.string().min(1, "Los nombres son requeridos"),
     lastName: z.string().min(1, "Los apellidos son requeridos"),
@@ -51,6 +53,8 @@ export const userFormSchema = z
     ).optional(),
   })
   .superRefine((data, ctx) => {
+    // This only relaxes document presence. All base field/role/schedule rules remain.
+    if (!requireDocuments) return;
     const roles = data.roles || [];
 
     // Validaciones personalizadas
@@ -155,4 +159,5 @@ export const userFormSchema = z
     } */
   });
 
+export const userFormSchema = createUserFormSchema();
 export type UserFormSchema = z.infer<typeof userFormSchema>;

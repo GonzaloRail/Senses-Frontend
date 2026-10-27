@@ -20,7 +20,7 @@ import {
 import { useRolesQuery } from "@/shared/hooks";
 import { FormProvider, useFieldArray, useForm } from "react-hook-form";
 import {
-  userFormSchema,
+  createUserFormSchema,
   type UserFormSchema,
 } from "@/shared/interfaces/forms/UserFormSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,6 +32,8 @@ import { UserWorkSchedule } from "../components/PsychologistWorkSchedule";
 import { SearchableSelect } from "@/shared/components/SearchableSelect";
 import { uploadFileToCloudStorage } from "@/shared/utils/uploadFileToCloudStorage";
 import { useAuth } from "@/store/auth/auth.store";
+import { getAssignedOfficeOptions, resolveScheduleOfficeId } from "../utils/scheduleOffice";
+import { requiresUserDocuments } from "../utils/userEditPolicy";
 
 type FormMode = "view" | "edit" | "create";
 
@@ -60,9 +62,10 @@ const getRoleName = (value: unknown): RoleType | undefined => {
 };
 
 export const SystemUserInformation = () => {
+  const { id } = useParams<{ id: string }>();
   const roleSelected = useAuth((state) => state.roleSelected);
   const methods = useForm<UserFormSchema>({
-    resolver: zodResolver(userFormSchema),
+    resolver: zodResolver(createUserFormSchema({ requireDocuments: requiresUserDocuments(id) })),
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -91,7 +94,6 @@ export const SystemUserInformation = () => {
     control,
   } = methods;
 
-  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [mode, setMode] = useState<FormMode>(() => {
     if (!id) return "create";
@@ -141,14 +143,14 @@ export const SystemUserInformation = () => {
 
           // Extrae las horas y minutos usando los métodos UTC
           const fromHour = String(startDate.getUTCHours()).padStart(2, "0");
-          const fromMinute = "00";
+          const fromMinute = String(startDate.getUTCMinutes()).padStart(2, "0");
           const toHour = String(endDate.getUTCHours()).padStart(2, "0");
-          const toMinute = "00";
+          const toMinute = String(endDate.getUTCMinutes()).padStart(2, "0");
 
           // 3. Retorna el objeto con el formato correcto para el formulario.
           return {
             day: schedule.day,
-            officeId: schedule.officeId,
+            officeId: resolveScheduleOfficeId(schedule),
             fromHour, // ej. "07"
             fromMinute, // ej. "00"
             toHour, // ej. "21"
@@ -540,6 +542,12 @@ export const SystemUserInformation = () => {
             className="flex-1 flex flex-col"
           >
             <div className="flex flex-col px-4 py-6 gap-8 flex-1 w-full max-w-[1200px] mx-auto">
+              {mode === "edit" && !requiresUserDocuments(id) && (
+                <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950" role="note">
+                  Excepción temporal de pruebas: puedes editar este usuario sin completar documentos faltantes.
+                  Los archivos existentes se conservan. La creación de usuarios sigue exigiendo la documentación.
+                </p>
+              )}
               <div className="flex flex-col gap-10 justify-center lg:flex-row">
                 <div className="flex flex-col p-2 md:p-6 items-center gap-2">
                   {/* Información básica */}
@@ -818,6 +826,7 @@ export const SystemUserInformation = () => {
                     isViewMode={isViewMode}
                     selectedDays={selectedDays}
                     handleSelectionChange={handleSelectionChange}
+                    assignedOfficeOptions={getAssignedOfficeOptions(userData?.workSchedule ?? [])}
                   />
                 )}
               </div>

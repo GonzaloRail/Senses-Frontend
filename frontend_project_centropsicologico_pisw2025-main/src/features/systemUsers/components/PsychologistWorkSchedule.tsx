@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/shared/components/SearchableSelect";
 import { useOfficesSearchQuery } from "@/features/offices/hooks/useOfficesQueries";
+import { mergeScheduleOfficeOptions, type ScheduleOfficeOption } from "../utils/scheduleOffice";
 
 const days = [
   { id: "MONDAY", label: "Lunes" },
@@ -33,6 +34,7 @@ interface UserWorkScheduleProps {
   isViewMode: boolean;
   selectedDays: string[];
   handleSelectionChange: (newDays: string[]) => void;
+  assignedOfficeOptions?: ScheduleOfficeOption[];
 }
 
 export const UserWorkSchedule = ({
@@ -43,8 +45,13 @@ export const UserWorkSchedule = ({
   isViewMode,
   selectedDays,
   handleSelectionChange,
+  assignedOfficeOptions = [],
 }: UserWorkScheduleProps) => {
   const officesSearch = useOfficesSearchQuery();
+  const officeOptions = mergeScheduleOfficeOptions(
+    assignedOfficeOptions,
+    officesSearch.offices.map((office) => ({ value: office.id, label: office.name }))
+  );
 
   return (
     <div className="flax flex-col">
@@ -86,10 +93,6 @@ export const UserWorkSchedule = ({
           const originalIndex = fields.findIndex(
             (f) => f.id === sortedField.id
           );
-          const officeOptions = officesSearch.offices.map((item) => ({
-            value: item.id,
-            label: item.name,
-          }));
 
           return (
             <Card
@@ -181,7 +184,12 @@ export const UserWorkSchedule = ({
                   <Controller
                     control={control}
                     name={`workSchedule.${originalIndex}.officeId`}
-                    render={({ field, fieldState }) => (
+                    render={({ field, fieldState }) => isViewMode ? (
+                      <div className="my-2 w-full max-w-md rounded-md border bg-muted/20 p-2">
+                        {officeOptions.find((option) => option.value === field.value)?.label ??
+                          (field.value ? "Consultorio asignado" : "Sin consultorio asignado")}
+                      </div>
+                    ) : (
                       <SearchableSelect
                         readOnly={isViewMode}
                         options={officeOptions}
