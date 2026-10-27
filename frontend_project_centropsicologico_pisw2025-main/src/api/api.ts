@@ -29,11 +29,13 @@ api.interceptors.response.use(
     const isLoginOrRefresh =
       originalRequest.url?.includes("/auth/login") ||
       originalRequest.url?.includes("/auth/refresh-token");
+    const isPublicSuggestion = originalRequest.url?.includes("/api/v1/suggestions/public");
 
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
-      !isLoginOrRefresh
+      !isLoginOrRefresh &&
+      !isPublicSuggestion
     ) {
       originalRequest._retry = true;
       try {

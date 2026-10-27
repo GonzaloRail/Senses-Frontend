@@ -5,6 +5,10 @@ import { setAuth } from "@/store/auth/auth.store";
 export const useBootstrapAuth = () => {
   useEffect(() => {
     (async () => {
+      if (window.location.pathname.replace(/\/+$/, "") === "/buzon") {
+        setAuth({ accessToken: null, user: null, roleSelected: null });
+        return;
+      }
       try {
         const { data } = await api.post("/auth/refresh-token");
         if (!data.user) throw new Error("No user in response");
