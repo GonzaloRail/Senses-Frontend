@@ -34,6 +34,8 @@ import { uploadFileToCloudStorage } from "@/shared/utils/uploadFileToCloudStorag
 import { useAuth } from "@/store/auth/auth.store";
 import { getAssignedOfficeOptions, resolveScheduleOfficeId } from "../utils/scheduleOffice";
 import { requiresUserDocuments } from "../utils/userEditPolicy";
+import { UserAttendanceSettings } from "../components/UserAttendanceSettings";
+import { defaultsToAttendance, hasStaffAttendanceSchedule } from "../utils/userAttendance";
 
 type FormMode = "view" | "edit" | "create";
 
@@ -182,6 +184,12 @@ export const SystemUserInformation = () => {
         presentationLetter: findDocUrl("Carta de presentación"),
         certificate: findDocUrl("Constancia de habilitación"),
         workSchedule: formattedSchedules,
+        attendanceRequired: userData.attendanceRequired,
+        staffSchedule: userData.staffSchedule?.map((schedule) => ({
+          day: schedule.day,
+          startTime: schedule.startTime.includes("T") ? schedule.startTime.slice(11, 19) : schedule.startTime,
+          endTime: schedule.endTime.includes("T") ? schedule.endTime.slice(11, 19) : schedule.endTime,
+        })),
       });
       setSelectedRoles(
         (userData.roles ?? [])
@@ -328,6 +336,8 @@ export const SystemUserInformation = () => {
               "presentationLetter",
               "certificate",
               "workSchedule",
+              "attendanceRequired",
+              "staffSchedule",
             ].includes(key) && value !== ""
         )
       );
@@ -358,6 +368,8 @@ export const SystemUserInformation = () => {
         documents:
           processedDocuments.length > 0 ? processedDocuments : undefined,
         workSchedule: workSchedules,
+        attendanceRequired: data.attendanceRequired ?? (mode === "create" ? defaultsToAttendance(data.roles) : undefined),
+        staffSchedule: hasStaffAttendanceSchedule(data.roles) ? data.staffSchedule : undefined,
       };
 
       console.log("userPayload", userPayload); //falta isActive y documentos
@@ -382,6 +394,10 @@ export const SystemUserInformation = () => {
           {
             onSuccess: () => {
               navigate("/system-users");
+            },
+            onError: (error) => {
+              const axiosError = error as AxiosError<{ message: string }>;
+              showAlert(axiosError.response?.data?.message || error.message, "error");
             },
           }
         );
@@ -830,6 +846,8 @@ export const SystemUserInformation = () => {
                   />
                 )}
               </div>
+
+              <UserAttendanceSettings readOnly={isViewMode} creating={mode === "create"} roles={selectedRoles} />
 
               {mode === "view" && id && userRoleNames.includes("PSYCHOLOGIST") && (
                 <PsychologistCommissionSettings

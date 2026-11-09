@@ -17,6 +17,8 @@ export interface User {
   password: string;
   csp?: string;
   isActive: boolean;
+  attendanceRequired?: boolean;
+  staffSchedule?: Pick<WorkSchedule, "day" | "startTime" | "endTime">[];
 
   psychologistId?: string;
   psychologist?: User;

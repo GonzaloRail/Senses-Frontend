@@ -4,6 +4,7 @@ const systemUsersListSchema = z.object({
   name: z.string(),
   role: z.string().array(),
   status: z.boolean(),
+  attendanceRequired: z.boolean().optional(),
   adminButton: z.string(),
 });
 

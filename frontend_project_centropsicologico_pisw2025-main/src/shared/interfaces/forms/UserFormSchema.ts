@@ -1,5 +1,26 @@
 import { z } from "zod";
 
+export const staffDays = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"] as const;
+const staffTime = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/, "Ingresa una hora válida");
+const asSeconds = (time: string) => time.length === 5 ? `${time}:00` : time;
+const staffSchedule = z.array(z.object({
+  day: z.enum(staffDays),
+  startTime: staffTime,
+  endTime: staffTime,
+})).superRefine((blocks, context) => {
+  blocks.forEach((block, index) => {
+    const start = asSeconds(block.startTime);
+    const end = asSeconds(block.endTime);
+    if (start >= end) {
+      context.addIssue({ code: "custom", path: [index, "endTime"], message: "La salida debe ser posterior a la entrada." });
+    } else if (blocks.slice(0, index).some((other) =>
+      other.day === block.day && start < asSeconds(other.endTime) && end > asSeconds(other.startTime)
+    )) {
+      context.addIssue({ code: "custom", path: [index, "startTime"], message: "Este bloque se cruza con otro horario del mismo día." });
+    }
+  });
+});
+
 export const createUserFormSchema = (
   { requireDocuments = true }: { requireDocuments?: boolean } = {}
 ) => z
@@ -38,6 +59,8 @@ export const createUserFormSchema = (
       .optional()
       .or(z.literal("")),
     isActive: z.boolean().optional(),
+    attendanceRequired: z.boolean().optional(),
+    staffSchedule: staffSchedule.optional(),
     workSchedule: z.array(
         z.object({
             day: z.string(),

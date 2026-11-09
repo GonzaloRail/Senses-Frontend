@@ -7,10 +7,13 @@ import { MdInventory, MdAnnouncement, MdNotificationsActive, MdMailOutline } fro
 import { FaUserCog } from "react-icons/fa";
 import { TbReceipt } from "react-icons/tb";
 
+const myAttendance = { title: "Mi asistencia", icon: FaClipboardList, url: "/attendance/me" };
+
 export const getNavMainItemsByRole = (role: string) => {
   switch (role) {
     case "ADMIN":
       return [
+        { title: "Asistencia del personal", icon: FaClipboardList, url: "/attendance" },
         {
           title: "Analíticas",
           icon: TbLayoutDashboardFilled,
@@ -105,6 +108,7 @@ export const getNavMainItemsByRole = (role: string) => {
       ];
     case "ADMISSION":
       return [
+        myAttendance,
         { title: "Marcaje de personal", icon: FaClipboardList, url: "/attendance/station" },
         { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions/new" },
         {
@@ -135,6 +139,7 @@ export const getNavMainItemsByRole = (role: string) => {
       ];
     case "CASHIER":
       return [
+        myAttendance,
         { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions/new" },
         {
           title: "Registro de ingresos",
@@ -159,6 +164,8 @@ export const getNavMainItemsByRole = (role: string) => {
       ];
     case "HR":
       return [
+        myAttendance,
+        { title: "Control de asistencia", icon: FaClipboardList, url: "/attendance" },
         { title: "Marcaje de personal", icon: FaClipboardList, url: "/attendance/station" },
         { title: "Gestión del buzón", icon: MdMailOutline, url: "/suggestions" },
         {
@@ -184,6 +191,7 @@ export const getNavMainItemsByRole = (role: string) => {
       ];
     case "PSYCHOLOGIST":
       return [
+        myAttendance,
         { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions/new" },
         {
           title: "Mis pacientes",
@@ -203,6 +211,7 @@ export const getNavMainItemsByRole = (role: string) => {
       ];
     case "INTERNAL":
       return [
+        myAttendance,
         { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions/new" },
         { title: "Mis pacientes", icon: FaUser, url: "/my-patients" },
         { title: "Mi horario", icon: FaCalendarAlt, url: "/my-schedule" },

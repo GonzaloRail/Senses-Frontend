@@ -63,6 +63,8 @@ import { AppointmentNotificationsPage } from "@/features/appointment-notificatio
 import { AppointmentConfirmationPage } from "@/features/appointment-notifications/pages/AppointmentConfirmationPage";
 import { SuggestionsPage, SuggestionsInboxPage, SuggestionDetailPage, SuggestionReportPage, PublicSuggestionPage } from "@/features/suggestions/pages/SuggestionsPage";
 import { AttendanceStationPage } from "@/features/attendance/pages/AttendanceStationPage";
+import { AttendanceManagementPage } from "@/features/attendance/pages/AttendanceManagementPage";
+import { MyAttendancePage } from "@/features/attendance/pages/MyAttendancePage";
 
 // import { CreateLocation } from "@/features/locations/pages/CreateLocation";
 
@@ -140,6 +142,12 @@ export const AppRouter = () => {
 
               <Route element={<ProtectedRoute allowedRoles={["ADMISSION", "HR", "ADMIN"]} />}>
                 <Route path="attendance/station" element={<AttendanceStationPage />} />
+              </Route>
+              <Route element={<ProtectedRoute allowedRoles={["HR", "ADMIN"]} />}>
+                <Route path="attendance" element={<AttendanceManagementPage />} />
+              </Route>
+              <Route element={<ProtectedRoute allowedRoles={["PSYCHOLOGIST", "INTERNAL", "ADMISSION", "CASHIER", "HR"]} />}>
+                <Route path="attendance/me" element={<MyAttendancePage />} />
               </Route>
 
               {/* Rutas exclusivas de Recursos Humanos */}

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SiteHeader } from "@/shared/components/SiteHeader";
-import { attendanceError, getAttendanceToday, registerPunch, undoPunch, type Punch } from "../api/attendanceApi";
+import { attendanceError, attendanceLabels, getAttendanceToday, registerPunch, undoPunch, type Punch } from "../api/attendanceApi";
 
 const todayKey = ["attendance", "today"] as const;
 const clock = new Intl.DateTimeFormat("es-PE", {
@@ -15,16 +15,6 @@ const clock = new Intl.DateTimeFormat("es-PE", {
   second: "2-digit",
   hourCycle: "h23",
 });
-const statusLabels: Record<Punch["provisionalDay"]["status"], string> = {
-  PUNTUAL: "Puntual",
-  TARDANZA: "Tardanza",
-  SALIDA_ANTICIPADA: "Salida anticipada",
-  INCOMPLETO: "Sin salida",
-  AUSENTE: "Ausente",
-  PERMISO: "Con permiso",
-  SIN_HORARIO: "Sin horario",
-  NO_LABORABLE: "No laborable",
-};
 const punchLabel = (type: Punch["record"]["type"]) => type === "IN" ? "Entrada" : "Salida";
 
 export function AttendanceStationPage() {
@@ -37,7 +27,7 @@ export function AttendanceStationPage() {
   const [result, setResult] = useState<Punch>();
   const [message, setMessage] = useState<{ text: string; error: boolean }>();
   const [recent, setRecent] = useState<Punch[]>([]);
-  const [undoExpiresAt, setUndoExpiresAt] = useState(0);
+  const [undoRecordId, setUndoRecordId] = useState<string>();
   const [now, setNow] = useState(Date.now);
 
   const today = useQuery({
@@ -46,6 +36,8 @@ export function AttendanceStationPage() {
     refetchInterval: 30_000,
     retry: false,
   });
+  const serverOffset = today.data ? Date.parse(today.data.serverTime) - today.dataUpdatedAt : undefined;
+  const serverNow = serverOffset === undefined ? undefined : now + serverOffset;
 
   useEffect(() => {
     const focus = () => input.current?.focus();
@@ -75,7 +67,7 @@ export function AttendanceStationPage() {
       setRecent((entries) => [punch, ...entries.filter(
         (entry) => entry.provisionalDay.date === punch.provisionalDay.date
       )].slice(0, 5));
-      setUndoExpiresAt(Date.now() + 120_000);
+      setUndoRecordId(punch.record.id);
       void queryClient.invalidateQueries({ queryKey: todayKey });
     },
     onError: (error) => setMessage({
@@ -93,7 +85,7 @@ export function AttendanceStationPage() {
     retry: false,
     onSuccess: (_, id) => {
       setRecent((entries) => entries.filter((entry) => entry.record.id !== id));
-      setUndoExpiresAt(0);
+      setUndoRecordId(undefined);
       setMessage({ text: "Marcaje deshecho.", error: false });
       void queryClient.invalidateQueries({ queryKey: todayKey });
     },
@@ -135,7 +127,8 @@ export function AttendanceStationPage() {
 
   const recentToday = recent.filter((entry) => !today.data || entry.provisionalDay.date >= today.data.date);
   const latest = recentToday[0];
-  const pending = today.data?.staff.filter((person) => person.punchesCount === 0 && person.status !== "PERMISO" && person.status !== "NO_LABORABLE") ?? [];
+  const pending = today.data?.staff.filter((person) => person.status === "PENDIENTE") ?? [];
+  const undoDeadline = latest ? Date.parse(latest.undoUntil) : 0;
   const isBusy = register.isPending || undo.isPending;
 
   return (
@@ -149,8 +142,8 @@ export function AttendanceStationPage() {
               <p className="mt-2 text-sm text-muted-foreground">Digita tu DNI o usa el lector y presiona Enter.</p>
             </div>
             <div className="text-right">
-              <p className="text-xl font-semibold tabular-nums">{clock.format(now)}</p>
-              <p className="text-xs text-muted-foreground">Hora del equipo en Lima</p>
+              <p className="text-xl font-semibold tabular-nums">{serverNow === undefined ? "—" : clock.format(serverNow)}</p>
+              <p className="text-xs text-muted-foreground">Hora del servidor en Lima</p>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -186,7 +179,7 @@ export function AttendanceStationPage() {
             {result && (
               <div role="status" className={result.provisionalDay.status === "PUNTUAL" ? "rounded-md bg-green-50 p-4 text-green-900" : "rounded-md bg-amber-50 p-4 text-amber-950"}>
                 <p className="font-semibold">{punchLabel(result.record.type)} registrada · {clock.format(new Date(result.record.punchedAt))}</p>
-                <p>{result.user.fullName} · {statusLabels[result.provisionalDay.status]} (provisional)</p>
+                <p>{result.user.fullName} · {attendanceLabels[result.provisionalDay.status]} (provisional)</p>
                 {result.provisionalDay.expectedStart && result.provisionalDay.expectedEnd && (
                   <p className="text-sm">Horario de hoy {result.provisionalDay.expectedStart}–{result.provisionalDay.expectedEnd}</p>
                 )}
@@ -194,9 +187,9 @@ export function AttendanceStationPage() {
                 {result.provisionalDay.earlyLeaveMinutes > 0 && <p className="text-sm">{result.provisionalDay.earlyLeaveMinutes} min de salida anticipada</p>}
               </div>
             )}
-            {latest && now < undoExpiresAt && (
+            {latest && latest.record.id === undoRecordId && serverNow !== undefined && serverNow < undoDeadline && (
               <Button variant="outline" disabled={isBusy} onClick={() => {
-                if (busy.current || Date.now() >= undoExpiresAt) return;
+                if (busy.current || serverOffset === undefined || Date.now() + serverOffset >= undoDeadline) return;
                 busy.current = true;
                 setMessage(undefined);
                 setResult(undefined);

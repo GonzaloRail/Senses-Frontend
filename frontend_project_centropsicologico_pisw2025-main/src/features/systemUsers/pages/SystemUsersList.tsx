@@ -56,6 +56,11 @@ export const SystemUsersList = () => {
       ),
     },
     {
+      accessorKey: "attendanceRequired",
+      header: "Registra asistencia",
+      cell: ({ row }) => row.original.attendanceRequired === undefined ? "—" : row.original.attendanceRequired ? "Sí" : "No",
+    },
+    {
       accessorKey: "adminButton",
       header: "",
       cell: ({ row }) => (
@@ -88,6 +93,7 @@ export const SystemUsersList = () => {
       name: `${user.firstName} ${user.lastName}`,
       role: user.roles.map((role) => rolesName[role.role.name]),
       status: user.isActive,
+      attendanceRequired: user.attendanceRequired,
       adminButton: "Administrar",
     }));
 
@@ -115,6 +121,7 @@ export const SystemUsersList = () => {
       name: `${user.firstName} ${user.lastName}`,
       role: user.roles.map((role) => rolesName[role.role.name]),
       status: user.isActive,
+      attendanceRequired: user.attendanceRequired,
       adminButton: "Administrar",
     }));
 
