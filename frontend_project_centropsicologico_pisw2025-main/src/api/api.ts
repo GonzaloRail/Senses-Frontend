@@ -23,8 +23,11 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
-    console.log("interceptor response", error);
     const originalRequest = error.config;
+    if (!originalRequest?.url?.endsWith("/attendance/punch")) {
+      console.log("interceptor response", error);
+    }
+    if (!originalRequest) return Promise.reject(error);
 
     const isLoginOrRefresh =
       originalRequest.url?.includes("/auth/login") ||

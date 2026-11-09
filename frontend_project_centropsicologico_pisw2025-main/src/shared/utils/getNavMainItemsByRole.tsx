@@ -105,6 +105,7 @@ export const getNavMainItemsByRole = (role: string) => {
       ];
     case "ADMISSION":
       return [
+        { title: "Marcaje de personal", icon: FaClipboardList, url: "/attendance/station" },
         { title: "Buzón de sugerencias", icon: MdMailOutline, url: "/suggestions/new" },
         {
           title: "Gestión de citas",
@@ -158,6 +159,7 @@ export const getNavMainItemsByRole = (role: string) => {
       ];
     case "HR":
       return [
+        { title: "Marcaje de personal", icon: FaClipboardList, url: "/attendance/station" },
         { title: "Gestión del buzón", icon: MdMailOutline, url: "/suggestions" },
         {
           title: "Gestión de usuarios del sistema",

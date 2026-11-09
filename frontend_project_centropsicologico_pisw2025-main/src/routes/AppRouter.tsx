@@ -62,6 +62,7 @@ import { AuditPage } from "@/features/audit/pages/AuditPage";
 import { AppointmentNotificationsPage } from "@/features/appointment-notifications/pages/AppointmentNotificationsPage";
 import { AppointmentConfirmationPage } from "@/features/appointment-notifications/pages/AppointmentConfirmationPage";
 import { SuggestionsPage, SuggestionsInboxPage, SuggestionDetailPage, SuggestionReportPage, PublicSuggestionPage } from "@/features/suggestions/pages/SuggestionsPage";
+import { AttendanceStationPage } from "@/features/attendance/pages/AttendanceStationPage";
 
 // import { CreateLocation } from "@/features/locations/pages/CreateLocation";
 
@@ -136,6 +137,10 @@ export const AppRouter = () => {
                   )
                 }
               />
+
+              <Route element={<ProtectedRoute allowedRoles={["ADMISSION", "HR", "ADMIN"]} />}>
+                <Route path="attendance/station" element={<AttendanceStationPage />} />
+              </Route>
 
               {/* Rutas exclusivas de Recursos Humanos */}
               <Route element={<ProtectedRoute allowedRoles={["HR"]} />}>
