@@ -59,8 +59,8 @@ export const SelectRolePage = () => {
 
   const userRoles = (user?.roles ?? []).map((role) => ({
     id: String(role.role.id),
-    name: rolesName[role.role.name],
-  })).filter(role => role.name !== rolesName.INTERNAL);
+    name: rolesName[role.role.name] ?? role.role.name,
+  }));
   
   // Verificar si ambos campos están seleccionados
   const isFormComplete = selectedRole;
@@ -95,26 +95,32 @@ export const SelectRolePage = () => {
         Seleccione su rol
       </h1>
       <div className="flex justify-between gap-2 mb-20 lg:gap-5 lg:mb-30">
-        <Select value={selectedRole} onValueChange={setSelectedRole}>
-          <SelectTrigger className="w-full lg:w-[180px]">
-            <SelectValue placeholder="Seleccione su rol" />
-          </SelectTrigger>
-          <SelectContent>
-            {userRoles?.map((role) => (
-              <SelectItem key={role.id} value={role.id}>
-                {role.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {userRoles.length === 0 ? (
+          <p className="max-w-md text-center text-sm text-destructive" role="alert">
+            Tu usuario no tiene roles asignados. Contacta al administrador o cambia de usuario.
+          </p>
+        ) : (
+          <Select value={selectedRole} onValueChange={setSelectedRole}>
+            <SelectTrigger className="w-full lg:w-[180px]">
+              <SelectValue placeholder="Seleccione su rol" />
+            </SelectTrigger>
+            <SelectContent>
+              {userRoles.map((role) => (
+                <SelectItem key={role.id} value={role.id}>
+                  {role.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
       <div className="flex gap-2">
         <Button
           onClick={handleEnter}
-          disabled={!isFormComplete}
-          className={!isFormComplete ? "opacity-50 cursor-not-allowed" : ""}
+          disabled={!isFormComplete || userRoles.length === 0 || selectAndLocation.isPending}
+          className={!isFormComplete || selectAndLocation.isPending ? "opacity-50 cursor-not-allowed" : ""}
         >
-          Ingresar
+          {selectAndLocation.isPending ? "Ingresando…" : "Ingresar"}
         </Button>
         <Button variant="outline" onClick={handleBackToLogin}>
           Cambiar usuario

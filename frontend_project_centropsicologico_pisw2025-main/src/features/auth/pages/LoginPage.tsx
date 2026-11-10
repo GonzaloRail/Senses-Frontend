@@ -8,6 +8,7 @@ import { useNavigate } from "react-router";
 import { useAuth } from "@/store/auth/auth.store";
 import { useEffect } from "react";
 import { useLoginMutation } from "../hooks";
+import { GoogleSignInButton } from "../components/GoogleSignInButton";
 
 export const LoginPage = () => {
   const {
@@ -61,25 +62,34 @@ export const LoginPage = () => {
           register={register("password")}
           errors={errors.password}
           type="password"
-          autoComplete="off"
+          autoComplete="current-password"
         />
         <Button
           type="submit"
           className="w-30 mt-2 bg-senses-primary cursor-pointer"
+          disabled={login.isPending}
         >
-          Ingresar
+          {login.isPending ? "Ingresando…" : "Ingresar"}
         </Button>
         <p className="mt-4 text-sm text-gray-600">
           ¿Olvidaste tu contraseña?{" "}
           <button
             type="button"
             className="underline cursor-pointer"
-            onClick={() => navigate("/auth/request-password-reset")}
+          onClick={() => navigate("/auth/request-password-reset")}
           >
             Restablecer contraseña
           </button>
         </p>
       </form>
+      <div className="my-5 flex w-full max-w-[400px] items-center gap-3" aria-hidden="true">
+        <span className="h-px flex-1 bg-border" />
+        <span className="text-sm text-muted-foreground">o continúa con</span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      <GoogleSignInButton
+        onSuccess={() => navigate("/auth/select", { replace: true })}
+      />
     </div>
   );
 };

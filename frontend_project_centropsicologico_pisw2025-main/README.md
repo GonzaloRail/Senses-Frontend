@@ -27,10 +27,15 @@ npm install
 Por defecto, la aplicacion consume el backend desplegado. Para usar otra instancia, cree un archivo `.env` en la raiz del proyecto:
 
 ```env
-VITE_API_URL=http://localhost:3000
+VITE_API_URL=http://localhost:5000
+VITE_GOOGLE_AUTH_CLIENT_ID=tu-client-id-publico.apps.googleusercontent.com
 ```
 
 `VITE_API_URL` debe contener la URL base de la API, sin una ruta adicional.
+`VITE_GOOGLE_AUTH_CLIENT_ID` debe ser el ID de cliente web público configurado en
+Google y coincidir con `GOOGLE_AUTH_CLIENT_ID` del backend. Autoriza el origen
+del frontend en Google y en `CORS_ORIGINS` del backend. Esta variable se incluye
+en el bundle del navegador; no pongas secretos en variables `VITE_`.
 
 ## Comandos
 

@@ -1,5 +1,14 @@
 import api from "@/api/api";
+import axios from "axios";
+import { API_BASE_URL } from "@/api/api";
 import type { RequestPasswordResetForm } from "@/shared/interfaces/apiResponses/authResponses";
+
+// Google callbacks must not pass through the shared 401 refresh interceptor.
+const googleAuthApi = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  headers: { "Content-Type": "application/json" },
+});
 
 interface LoginBody {
   email: string;
@@ -8,6 +17,16 @@ interface LoginBody {
 
 export const loginApi = async (data: LoginBody) => {
   const response = await api.post("/auth/login", data);
+  return response.data;
+};
+
+export const requestGoogleLoginNonce = async () => {
+  const response = await googleAuthApi.post<{ nonce: string }>("/auth/google/nonce", {});
+  return response.data.nonce;
+};
+
+export const googleLoginApi = async (credential: string) => {
+  const response = await googleAuthApi.post("/auth/google", { credential });
   return response.data;
 };
 

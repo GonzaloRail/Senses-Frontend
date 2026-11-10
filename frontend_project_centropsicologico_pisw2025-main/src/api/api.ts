@@ -32,12 +32,14 @@ api.interceptors.response.use(
     const isLoginOrRefresh =
       originalRequest.url?.includes("/auth/login") ||
       originalRequest.url?.includes("/auth/refresh-token");
+    const isGoogleAuth = originalRequest.url?.includes("/auth/google");
     const isPublicSuggestion = originalRequest.url?.includes("/api/v1/suggestions/public");
 
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
       !isLoginOrRefresh &&
+      !isGoogleAuth &&
       !isPublicSuggestion
     ) {
       originalRequest._retry = true;
