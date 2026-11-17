@@ -83,8 +83,7 @@ export const AppRouter = () => {
 
   return (
     <Routes>
-      <Route path="/auth" element={<AuthLayout />}>
-        {/* <AuthRouter /> */}
+      <Route path="/auth">
         <Route
           index
           element={
@@ -97,13 +96,15 @@ export const AppRouter = () => {
             )
           }
         />
-        <Route path="select" element={<SelectRolePage />} />
-        <Route path="activate-account" element={<ActivateAccount />} />
-        <Route
-          path="request-password-reset"
-          element={<RequestPasswordReset />}
-        />
-        <Route path="reset-password" element={<ResetPassword />} />
+        <Route element={<AuthLayout />}>
+          <Route path="select" element={<SelectRolePage />} />
+          <Route path="activate-account" element={<ActivateAccount />} />
+          <Route
+            path="request-password-reset"
+            element={<RequestPasswordReset />}
+          />
+          <Route path="reset-password" element={<ResetPassword />} />
+        </Route>
       </Route>
 
       <Route path="/access-denied" element={<AccessDenied />} />

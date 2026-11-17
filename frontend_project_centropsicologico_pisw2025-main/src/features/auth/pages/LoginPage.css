@@ -1,0 +1,58 @@
+@font-face {
+  font-family: "Senses Inter";
+  src: url("/senses-login-inter.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Senses Poppins";
+  src: url("/senses-login-poppins.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+
+.senses-login {
+  --background: #fafbf8;
+  --foreground: #001e3a;
+  --muted-foreground: #48586a;
+  --border: #d8e0e7;
+  --input: #a4b2bf;
+  --ring: #496226;
+  --accent: #ebf0e3;
+  --accent-foreground: #001e3a;
+  --destructive: #a52323;
+  color-scheme: light;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: "Senses Inter", Inter, system-ui, sans-serif;
+}
+
+.senses-login-title {
+  font-family: "Senses Poppins", Poppins, system-ui, sans-serif;
+  font-weight: 600;
+}
+
+.senses-login-art {
+  position: relative;
+  place-items: center;
+  overflow: hidden;
+  padding: clamp(2rem, 5vw, 6rem);
+  background: radial-gradient(ellipse at 50% 48%, #17455b 0%, #092d48 45%, #001e3a 78%);
+}
+
+.senses-login-art img {
+  width: min(100%, 34rem);
+  height: auto;
+}
+
+.senses-login-submit {
+  background-color: #8ba64a;
+  color: #001e3a;
+}
+
+.senses-login-submit:hover {
+  background-color: #a0b964;
+}

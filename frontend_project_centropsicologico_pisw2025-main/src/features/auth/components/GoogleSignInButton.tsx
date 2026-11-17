@@ -222,23 +222,36 @@ export const GoogleSignInButton = ({ onSuccess }: GoogleSignInButtonProps) => {
       return;
     }
 
-    container.replaceChildren();
     google.accounts.id.initialize({
       client_id: googleClientId,
       nonce,
       auto_select: false,
       callback: (response) => loginWithCredentialRef.current(response),
     });
-    google.accounts.id.renderButton(container, {
-      theme: "outline",
-      size: "large",
-      text: "continue_with",
-      shape: "rectangular",
-      width: Math.max(200, Math.min(container.clientWidth || 320, 400)),
-      locale: "es",
-    });
+    let renderedWidth = 0;
+    const renderForWidth = () => {
+      const width = Math.min(container.clientWidth, 400);
+      if (!width || width === renderedWidth) return;
 
-    return () => container.replaceChildren();
+      renderedWidth = width;
+      container.replaceChildren();
+      google.accounts.id.renderButton(container, {
+        theme: "outline",
+        size: "large",
+        text: "continue_with",
+        shape: "rectangular",
+        width,
+        locale: "es",
+      });
+    };
+    renderForWidth();
+
+    const resizeObserver = new ResizeObserver(renderForWidth);
+    resizeObserver.observe(container);
+    return () => {
+      resizeObserver.disconnect();
+      container.replaceChildren();
+    };
   }, [isGoogleScriptReady, nonce]);
 
   if (!googleClientId) {
