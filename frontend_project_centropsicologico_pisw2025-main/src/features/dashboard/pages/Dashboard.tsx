@@ -6,16 +6,22 @@ import { Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, Pie, PieChart
 import type { ColumnDef } from "@tanstack/react-table";
 import type { DashboardPsychologystListSchema } from "@/shared/interfaces/tables/DashboardPsychologystListSchema";
 import { DataTable } from "@/shared/components/DataTable";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getActiveInternals, getAppointmentsByWeekday, getPatientsPerAgeGroups, getPsychologistsWithPatients, getSocialCasesPerMonth, getTotalHoursPerMonth, getTotalParticularCases, getTotalPatients, getTotalPsychologists, getTotalSocialCases, type DashboardFilters } from "../api/dashboardApi";
 import { Loading } from "@/shared/components/Loading";
 import { searchPsychologistByName } from "@/features/systemUsers/api/systemUsersApi";
 import { searchOfficesByName } from "@/features/offices/api/officesApi";
+import { getAllActiveLocationsApi } from "@/features/locations/api/locationsApi";
 
 type Period = "day" | "month" | "year" | "custom";
 type FilterOption = { id: string; label: string };
 
-const toInputDate = (date: Date) => date.toISOString().slice(0, 10);
+const toInputDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const periodRange = (period: Period, customFrom: string, customTo: string) => {
   const now = new Date();
@@ -45,9 +51,16 @@ export const Dashboard = () => {
   const [officeId, setOfficeId] = useState("");
   const [psychologists, setPsychologists] = useState<FilterOption[]>([]);
   const [offices, setOffices] = useState<FilterOption[]>([]);
+  const [locations, setLocations] = useState<FilterOption[]>([]);
+  const [catalogError, setCatalogError] = useState(false);
+  const [locationError, setLocationError] = useState(false);
+  const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const invalidRange = period === "custom" && (!customFrom || !customTo || customFrom > customTo);
 
 
   const [isLoading, setIsLoading] = useState(true);
+  const [settledKey, setSettledKey] = useState("");
 
   const filters = useMemo<DashboardFilters>(() => {
     const range = periodRange(period, customFrom, customTo);
@@ -58,19 +71,29 @@ export const Dashboard = () => {
       officeId: officeId || undefined,
     };
   }, [period, customFrom, customTo, psychologistId, officeId]);
+  const requestKey = JSON.stringify([filters, retry]);
 
   useEffect(() => {
+    let current = true;
     Promise.all([searchPsychologistByName(""), searchOfficesByName("")])
       .then(([users, availableOffices]) => {
+        if (!current) return;
         setPsychologists(users.map((user: { id: string; firstName: string; lastName: string }) => ({ id: user.id, label: `${user.firstName} ${user.lastName}` })));
         setOffices(availableOffices.map((office: { id: string; name: string }) => ({ id: office.id, label: office.name })));
       })
-      .catch(() => undefined);
+      .catch(() => { if (current) setCatalogError(true); });
+    getAllActiveLocationsApi()
+      .then((items) => { if (current) setLocations(items.map(({ id, name }) => ({ id, label: name }))); })
+      .catch(() => { if (current) setLocationError(true); });
+    return () => { current = false; };
   }, []);
 
   useEffect(() => {
+    let current = true;
+    if (invalidRange) return () => { current = false; };
     const fetchData = async () => {
       setIsLoading(true);
+      setError(false);
       try {
         const [
           psychologistData,
@@ -96,6 +119,7 @@ export const Dashboard = () => {
           getAppointmentsByWeekday(filters),
         ]);
 
+        if (!current) return;
         setPsychologistNumber(psychologistData.count);
         setPatientsNumber(patientsData.count);
         setTotalMonthlyHours(hoursData.hours);
@@ -109,13 +133,18 @@ export const Dashboard = () => {
 
       } catch (error) {
         console.error("Error al obtener datos del Dashboard:", error);
+        if (current) setError(true);
       } finally {
-        setIsLoading(false);
+        if (current) {
+          setSettledKey(requestKey);
+          setIsLoading(false);
+        }
       }
     };
 
     fetchData();
-  }, [filters]);
+    return () => { current = false; };
+  }, [filters, invalidRange, requestKey]);
 
   const lineChartData = appointmentsCountByRange;
 
@@ -134,7 +163,7 @@ export const Dashboard = () => {
     },
     {
       accessorKey: "patientNumber",
-      header: "Pacientes por mes",
+      header: "Pacientes en el período",
       cell: ({ row }) => (
         <div>
           {row.original.patientNumber}
@@ -143,7 +172,7 @@ export const Dashboard = () => {
     },
   ]
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     const data = psychologistId
       ? psychologistWithPatients.filter((psychologist: DashboardPsychologystListSchema) => psychologist.id === psychologistId)
       : psychologistWithPatients;
@@ -151,7 +180,7 @@ export const Dashboard = () => {
       data: data,
       pageCount: 1,
     };
-  }
+  }, [psychologistId, psychologistWithPatients]);
 
   const pieChartData = [
     { type: "socialCases", appointments: totalSocialCases, fill: "var(--color-senses-secondary)" },
@@ -176,19 +205,26 @@ export const Dashboard = () => {
     },
   } satisfies ChartConfig
 
-  if (isLoading) {
-    return (
-      <Loading message="Cargando..." />
-    );
-  }
-
   return (
     <>
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
         <SidebarTrigger className="-ml-1 cursor-pointer mt-4" />
       </div>
-      <Card className="mx-4 mt-3 p-4">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <main className="min-w-0 space-y-6 p-4 lg:p-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-senses-primary">Dashboard gerencial</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Resumen de indicadores y actividad del centro.</p>
+      </div>
+      <Card className="gap-3 p-4">
+        <h2 className="text-lg font-semibold">Filtros</h2>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <label className="grid gap-1 text-sm font-medium">
+            Sede
+            <select value="" disabled aria-describedby="location-filter-help" className="h-10 min-w-0 rounded-md border bg-muted px-3 text-muted-foreground">
+              <option value="">Todas las sedes</option>
+              {locations.map((location) => <option key={location.id} value={location.id}>{location.label}</option>)}
+            </select>
+          </label>
           <label className="grid gap-1 text-sm font-medium">
             Período
             <select value={period} onChange={(event) => setPeriod(event.target.value as Period)} className="h-9 rounded-md border bg-background px-3">
@@ -217,21 +253,31 @@ export const Dashboard = () => {
             </select>
           </label>
         </div>
+        <p id="location-filter-help" className="text-sm text-muted-foreground">El filtro por sede estará disponible cuando el servidor admita este cálculo. Por ahora se muestran datos consolidados.</p>
+        {locationError && <p role="alert" className="text-sm text-destructive">No se pudo cargar el catálogo de sedes.</p>}
+        {catalogError && <p role="alert" className="text-sm text-destructive">No se pudieron cargar los filtros de psicólogo y consultorio.</p>}
+        <p className="text-sm text-muted-foreground">El período solo se aplica actualmente a citas y pacientes por psicólogo. El filtro de psicólogo solo afecta la tabla; el de consultorio aún no modifica los indicadores.</p>
       </Card>
-      <div className="flex flex-row flex-wrap gap-1 p-4 justify-center">
+      {invalidRange ? <p role="alert" className="rounded-lg border p-4 text-sm">Selecciona un rango de fechas completo y válido.</p> : isLoading || settledKey !== requestKey ? <div aria-live="polite"><Loading message="Cargando indicadores..." /></div> : error ? (
+        <div role="alert" className="rounded-lg border border-destructive/40 p-4 text-sm">
+          <p>No se pudieron cargar los indicadores. Inténtalo nuevamente.</p>
+          <button type="button" onClick={() => setRetry((value) => value + 1)} className="mt-3 rounded-md border px-3 py-2 font-medium">Reintentar</button>
+        </div>
+      ) : <>
+      <section aria-label="Indicadores principales" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard title="Número de psicólogos" value={psychologistNumber} />
         <StatCard title="Número de pacientes" value={patientsNumber} />
         <StatCard title="Número de horas de trabajo al mes" value={totalMonthlyHours} />
         <StatCard title="Casos sociales realizados este mes" value={monthlySocialCases} />
         <StatCard title="Internos activos" value={activeInterns} />
-      </div>
-      <div className="flex flex-col p-3 lg:grid lg:grid-cols-10 justify-center items-center">
-        <Card className="p-3 lg:col-span-5 h-fit w-full">
+      </section>
+      <section aria-label="Gráficos de actividad" className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <Card className="min-w-0 gap-3 p-4">
           <div className="flex flex-row gap-1">
-            <h3 className="text-3xl font-semibold text-senses-primary mr-3">Citas</h3>
+            <h2 className="text-lg font-semibold text-senses-primary">Citas por día de la semana</h2>
           </div>
-          <CardContent>
-            <ChartContainer config={lineChartConfig}>
+          <CardContent className="min-w-0 p-0">
+            <ChartContainer config={lineChartConfig} className="h-[250px] w-full">
               <LineChart
                 accessibilityLayer
                 data={lineChartData}
@@ -263,15 +309,8 @@ export const Dashboard = () => {
             </ChartContainer>
           </CardContent>
         </Card>
-        <DataTable fetchData={fetchData}
-          columns={columns}
-          className="lg:col-span-5"
-        />
-      </div>
-
-      <div className="flex flex-col p-3 gap-3 lg:flex-row lg:gap-3 items-center justify-evenly w-full">
-        <Card className="p-3 flex flex-col items-center w-full lg:w-2/5">
-          <h3 className="text-2xl text-center font-semibold text-senses-primary">Casos sociales vs casos particulares</h3>
+        <Card className="min-w-0 gap-3 p-4">
+          <h2 className="text-lg font-semibold text-senses-primary">Casos sociales vs casos particulares</h2>
           <ChartContainer
             config={pieChartConfig}
             className="mx-auto aspect-square max-h-[250px]"
@@ -290,12 +329,15 @@ export const Dashboard = () => {
               />
             </PieChart>
           </ChartContainer>
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm">
+            <span>Casos sociales: {totalSocialCases}</span>
+            <span>Casos particulares: {totalParticularCases}</span>
+          </div>
         </Card>
 
-        
-        <Card className="p-3 flex flex-col items-center w-full lg:w-5/10">
-          <h3 className="text-2xl text-center font-semibold text-senses-primary">Grupos de edad de pacientes</h3>
-          <ChartContainer config={barChartConfig} style={{ width: "100%" }}>
+        <Card className="min-w-0 gap-3 p-4 lg:col-span-2">
+          <h2 className="text-lg font-semibold text-senses-primary">Grupos de edad de pacientes</h2>
+          <ChartContainer config={barChartConfig} className="h-[250px] w-full">
             <BarChart
               accessibilityLayer
               data={barChartData}
@@ -325,7 +367,13 @@ export const Dashboard = () => {
             </BarChart>
           </ChartContainer>
         </Card>
-      </div>
+      </section>
+      <Card className="min-w-0 gap-4 p-4">
+        <h2 className="text-lg font-semibold text-senses-primary">Pacientes por psicólogo</h2>
+        <DataTable fetchData={fetchData} columns={columns} />
+      </Card>
+      </>}
+      </main>
     </>
   )
 }

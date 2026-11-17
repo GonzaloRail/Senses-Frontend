@@ -2,11 +2,11 @@ import type { StatCardProps } from "@/shared/interfaces/ui/StatCardProps"
 
 export const StatCard = ({ title, value }: StatCardProps) => {
   return (
-    <div className="bg-senses-primary text-white py-2 px-4 rounded-lg shadow-xl text-md w-[calc(50%-4px)] flex flex-col items-center lg:w-[calc(20%-4px)] justify-center">
-      <div className="text-center font-semibold mb-2">
+    <div className="flex min-h-28 min-w-0 flex-col justify-between rounded-lg bg-senses-primary p-4 text-white shadow-sm">
+      <div className="text-sm font-medium leading-snug">
         {title}
       </div>
-      <div className="text-3xl font-bold">
+      <div className="mt-3 text-3xl font-bold tabular-nums">
         {value}
       </div>
     </div>

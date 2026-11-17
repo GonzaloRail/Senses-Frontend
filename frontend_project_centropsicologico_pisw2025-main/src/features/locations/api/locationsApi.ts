@@ -19,6 +19,30 @@ export const getAllLocationsPaginatedApi = async ({
   return response.data;
 };
 
+/** Loads every page: the search endpoint is limited to ten results. */
+export const getAllActiveLocationsApi = async (): Promise<{ id: string; name: string }[]> => {
+  const locations: { id: string; name: string; isActive: boolean }[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const result = await getAllLocationsPaginatedApi({ page, take: 100 });
+    if (!Array.isArray(result.locations) || !Number.isInteger(result.totalPages) || result.totalPages < 0 ||
+        !result.locations.every((location: unknown) => {
+          if (!location || typeof location !== "object") return false;
+          const item = location as Record<string, unknown>;
+          return typeof item.id === "string" && typeof item.name === "string" && typeof item.isActive === "boolean";
+        })) {
+      throw new Error("La respuesta del catálogo de sedes no es válida");
+    }
+    locations.push(...result.locations);
+    totalPages = result.totalPages;
+    page += 1;
+  } while (page <= totalPages);
+
+  return locations.filter((location) => location.isActive).map(({ id, name }) => ({ id, name }));
+};
+
 export interface LocationByIdQuery {
   id: string;
 }

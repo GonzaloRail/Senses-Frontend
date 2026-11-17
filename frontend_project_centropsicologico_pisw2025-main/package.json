@@ -11,6 +11,7 @@
     "test:hu24": "node --test scripts/hu24-suggestions.test.mjs",
     "test:hu25": "node --test scripts/hu25-attendance.test.mjs",
     "test:hu25-google": "node --test scripts/hu25-google-auth.test.mjs",
+    "test:hu29": "node --test scripts/hu29-dashboard.test.mjs",
     "test:user-edit": "node --test scripts/user-edit-regressions.test.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
