@@ -1,9 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
 import { Bell, CheckCheck } from "lucide-react";
-import { io, Socket } from "socket.io-client";
-import api, { API_BASE_URL } from "@/api/api";
-import { useAuth } from "@/store/auth/auth.store";
-import { toast } from "sonner";
+import { useNotifications } from "@/store/notifications/notifications.store";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,85 +11,20 @@ import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: string;
-  isRead: boolean;
-  createdAt: string;
-}
-
 export const NotificationBell = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const accessToken = useAuth((state) => state.accessToken);
-
-  // Cargar historial inicial
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const res = await api.get("/api/v1/notifications", { params: { take: 20 } });
-      setNotifications(res.data.data || []);
-    } catch (error) {
-      console.error("Error fetching notifications", error);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!accessToken) return;
-
-    fetchNotifications();
-
-    const socket: Socket = io(API_BASE_URL, {
-      auth: { token: accessToken }
-    });
-
-    socket.on("connect", () => {
-      console.log("WebSocket connected!");
-    });
-
-    socket.on("new_notification", (notification: Notification) => {
-      // Agregar la nueva notificación al inicio de la lista
-      setNotifications(prev => [notification, ...prev]);
-      
-      // Mostrar alerta flotante
-      toast("Nueva Notificación", {
-        description: notification.title,
-        icon: <Bell className="text-senses-primary" />
-      });
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [accessToken, fetchNotifications]);
-
-  const unreadCount = notifications.filter(n => !n.isRead).length;
-
-  const markAsRead = async (id: string) => {
-    try {
-      await api.patch(`/api/v1/notifications/${id}/read`);
-      setNotifications(prev => 
-        prev.map(n => n.id === id ? { ...n, isRead: true } : n)
-      );
-    } catch (error) {
-      console.error("Error marking as read", error);
-    }
-  };
-
-  const markAllAsRead = async () => {
-    try {
-      await api.patch("/api/v1/notifications/read-all");
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      toast.success("Todas marcadas como leídas");
-    } catch (error) {
-      console.error("Error marking all as read", error);
-    }
-  };
+  // Consumir el estado de notificaciones a nivel de sesión (sin instanciar ni desconectar WebSockets aquí)
+  const notifications = useNotifications((state) => state.notifications);
+  const unreadCount = useNotifications((state) => state.unreadCount);
+  const markAsRead = useNotifications((state) => state.markAsRead);
+  const markAllAsRead = useNotifications((state) => state.markAllAsRead);
+  const isLoading = useNotifications((state) => state.isLoading);
+  const error = useNotifications((state) => state.error);
+  const fetchNotifications = useNotifications((state) => state.fetchNotifications);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative hover:bg-senses-secondary/10">
+        <Button variant="ghost" size="icon" aria-label={`Notificaciones, ${unreadCount} sin leer`} className="relative hover:bg-senses-secondary/10">
           <Bell className="h-5 w-5 text-senses-primary" />
           {unreadCount > 0 && (
             <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-senses-danger text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
@@ -103,7 +34,7 @@ export const NotificationBell = () => {
         </Button>
       </DropdownMenuTrigger>
       
-      <DropdownMenuContent align="end" className="w-[380px] p-0 border-senses-secondary/20 shadow-xl overflow-hidden rounded-xl">
+      <DropdownMenuContent align="end" className="w-[380px] max-w-[calc(100vw-2rem)] p-0 border-senses-secondary/20 shadow-xl overflow-hidden rounded-xl">
         <div className="flex items-center justify-between px-4 py-3 bg-senses-primary/5 border-b border-senses-secondary/20">
           <DropdownMenuLabel className="font-bold text-senses-primary text-base p-0">
             Notificaciones
@@ -113,7 +44,7 @@ export const NotificationBell = () => {
               variant="ghost" 
               size="sm" 
               onClick={() => {
-                markAllAsRead();
+                void markAllAsRead();
               }}
               className="text-xs text-senses-secondary hover:text-senses-primary hover:bg-senses-secondary/10 h-8 px-2"
             >
@@ -124,7 +55,14 @@ export const NotificationBell = () => {
         </div>
         
         <div className="max-h-[400px] overflow-y-auto custom-scroll">
-          {notifications.length === 0 ? (
+          {error && (
+            <div className="p-4 text-sm">
+              <p role="alert">{error}</p>
+              <Button variant="outline" size="sm" disabled={isLoading} onClick={() => void fetchNotifications()}>Reintentar</Button>
+            </div>
+          )}
+          {isLoading && <p role="status" className="p-4 text-sm">Cargando notificaciones…</p>}
+          {notifications.length === 0 && !isLoading && !error ? (
             <div className="p-8 text-center text-senses-primary/50 text-sm font-medium">
               <Bell className="w-8 h-8 mx-auto mb-3 opacity-20" />
               No tienes notificaciones
@@ -135,7 +73,7 @@ export const NotificationBell = () => {
                 key={notif.id}
                 onSelect={(e) => {
                   e.preventDefault(); // Evitar cerrar el menú al hacer clic en Radix UI
-                  if (!notif.isRead) markAsRead(notif.id);
+                  if (!notif.isRead) void markAsRead(notif.id);
                 }}
                 className={`flex flex-col items-start px-4 py-3 cursor-pointer transition-colors focus:bg-senses-secondary/5 ${
                   notif.isRead 

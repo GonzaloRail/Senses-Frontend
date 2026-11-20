@@ -23,6 +23,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
+    if (axios.isCancel(error)) return Promise.reject(error);
     const originalRequest = error.config;
     if (!originalRequest?.url?.endsWith("/attendance/punch")) {
       console.log("interceptor response", error);
@@ -45,6 +46,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       try {
         const res = await api.post("/auth/refresh-token");
+        if (originalRequest.signal?.aborted) return Promise.reject(error);
         setAuth({
           accessToken: res.data.accessToken,
           roleSelected: res.data.roleSelected,
@@ -53,6 +55,7 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`;
         return api(originalRequest);
       } catch (error) {
+        if (originalRequest.signal?.aborted) return Promise.reject(error);
         setAuth({ accessToken: null, user: null });
         queryClient.clear();
         console.log(error);
